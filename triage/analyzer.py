@@ -21,16 +21,21 @@ TRIAGE RULES:
 
 Discord:
 - If Krishna has already replied to a thread, mark it as HANDLED unless the thread has continued with new unanswered questions after his reply
-- If a message is a question, bug report, or request that Krishna has NOT replied to, mark it as ACT
+- If a question or bug report was adequately answered by another community member, mark it as HANDLED (Krishna does not need to act on every question)
+- If a question, bug report, or request has NO adequate response from anyone (Krishna or community), mark it as ACT
+- If a long discussion ended without resolution or has unresolved open questions, mark it as ACT
+- If a question was partially answered but still has unresolved aspects, mark it as ACT
 - If a message is informational (announcement, FYI, resolved discussion), mark it as MONITOR
 - Summarize the thread in 1-2 sentences. Do not quote messages verbatim
 - Always include the message link
 
 GitHub:
 - Issues/PRs updated in the last {lookback_hours} hours are RECENT — prioritize these
+- Issues: only mark as ACT if they have significant community engagement (many upvotes/reactions or many comments). Low-activity issues should be MONITOR
 - If Krishna has already commented or reviewed and the thread is quiet, mark as HANDLED
-- If an issue is a bug report with no response from Krishna, mark as ACT
-- If a PR needs review and Krishna has not reviewed, mark as ACT
+- PRs where Krishna is listed as a requested reviewer (review_requested=true): mark as ACT (he has been explicitly asked to review)
+- PRs where Krishna previously requested changes AND the author has pushed new commits or resolved comments since his review: mark as ACT (author is waiting for Krishna to re-review)
+- PRs where Krishna has not reviewed at all and is not a requested reviewer: mark as MONITOR
 - Draft PRs: always mark as MONITOR regardless of Krishna's involvement
 - If a PR has been approved or merged by others with no action needed from Krishna, mark as HANDLED
 - Summarize each item in 1-2 sentences
@@ -164,6 +169,12 @@ def analyze(discord_data: list[dict], github_data: list[dict], config: dict) -> 
     )
     system_prompt = SYSTEM_PROMPT_TEMPLATE.format(lookback_hours=lookback)
 
+    # Rough token estimate: ~4 chars per token
+    est_input_tokens = (len(system_prompt) + len(user_message)) // 4
+    print(f"  System prompt: ~{len(system_prompt) // 4:,} tokens")
+    print(f"  User message: ~{len(user_message) // 4:,} tokens ({len(user_message):,} chars)")
+    print(f"  Total input: ~{est_input_tokens:,} tokens (estimated)")
+
     for attempt in range(2):
         try:
             response = client.messages.create(
@@ -172,6 +183,8 @@ def analyze(discord_data: list[dict], github_data: list[dict], config: dict) -> 
                 system=system_prompt,
                 messages=[{"role": "user", "content": user_message}],
             )
+            usage = response.usage
+            print(f"  Actual usage: {usage.input_tokens:,} input + {usage.output_tokens:,} output = {usage.input_tokens + usage.output_tokens:,} total tokens")
             text = response.content[0].text
             return _parse_response(text)
         except Exception as e:

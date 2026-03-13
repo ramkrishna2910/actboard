@@ -70,7 +70,7 @@ def _heading_block(level: int, text: str) -> dict:
         "type": key,
         key: {
             "rich_text": [_rich_text(text)],
-            "is_toggleable": True,
+            "is_toggleable": False,
         },
     }
 

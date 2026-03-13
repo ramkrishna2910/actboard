@@ -35,6 +35,14 @@ def _paginate(session: requests.Session, url: str, params: dict | None = None) -
     return results
 
 
+def _get_json(session: requests.Session, url: str) -> dict:
+    """GET a single JSON object (not paginated)."""
+    resp = session.get(url)
+    _check_rate_limit(resp)
+    resp.raise_for_status()
+    return resp.json()
+
+
 def _fetch_comments(session: requests.Session, owner: str, repo: str, number: int) -> list[dict]:
     """Fetch issue/PR comments."""
     url = f"{GITHUB_API}/repos/{owner}/{repo}/issues/{number}/comments"
@@ -122,6 +130,15 @@ def fetch_github(config: dict) -> list[dict]:
                 c["author"].lower() == github_username.lower() for c in comments
             )
 
+            # Check if Krishna is a requested reviewer
+            review_requested = False
+            if is_pr:
+                pr_resp = _get_json(session, f"{GITHUB_API}/repos/{owner}/{repo}/pulls/{number}")
+                requested_reviewers = [
+                    r["login"].lower() for r in pr_resp.get("requested_reviewers", [])
+                ]
+                review_requested = github_username.lower() in requested_reviewers
+
             # Fetch reviews for PRs
             reviews = []
             i_reviewed = False
@@ -160,6 +177,12 @@ def fetch_github(config: dict) -> list[dict]:
                 else f"https://github.com/{owner}/{repo}/issues/{number}"
             )
 
+            # Check if Krishna requested changes and author has responded since
+            i_requested_changes = any(
+                r["author"].lower() == github_username.lower() and r["state"] == "CHANGES_REQUESTED"
+                for r in reviews
+            )
+
             results.append({
                 "type": item_type,
                 "repo": repo_full,
@@ -173,11 +196,15 @@ def fetch_github(config: dict) -> list[dict]:
                 "created_at": item["created_at"],
                 "updated_at": item["updated_at"],
                 "is_recent": is_recent,
+                "reactions": item.get("reactions", {}).get("total_count", 0),
+                "comment_count": len(comments),
                 "link": link,
                 "comments": comments,
                 "reviews": reviews,
                 "i_commented": i_commented,
+                "i_requested_changes": i_requested_changes,
                 "i_reviewed": i_reviewed,
+                "review_requested": review_requested,
             })
 
         print(f"  {repo_full}: {issue_count} issues, {pr_count} PRs")
