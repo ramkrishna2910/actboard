@@ -1,4 +1,4 @@
-"""Re-render and post a saved triage JSON to Notion (no Claude API cost)."""
+"""Re-post a saved triage JSON to Notion (no Claude API cost)."""
 
 import json
 import os
@@ -7,7 +7,6 @@ from pathlib import Path
 import yaml
 from dotenv import load_dotenv
 
-from renderer import render
 from notion_writer import write_to_notion
 
 config_path = Path(__file__).parent / "config.yaml"
@@ -24,14 +23,10 @@ title_fmt = config["notion"]["report_title_format"]
 config["_report_title"] = title_fmt.format(date=date.today().isoformat())
 
 # Load saved JSON
-json_path = Path(__file__).parent / "triage_output_2026-03-13.json"
+json_path = Path(__file__).parent / "triage_output_2026-03-25.json"
 with open(json_path) as f:
     triage_result = json.load(f)
 
-print("Rendering blocks...")
-blocks = render(triage_result)
-print(f"  {len(blocks)} blocks to write")
-
 print("Writing to Notion...")
-page_url = write_to_notion(blocks, config)
+page_url = write_to_notion(triage_result, config)
 print(f"Done: {page_url}")

@@ -53,7 +53,7 @@ def _todo_block(item: dict, emoji: str) -> dict:
     segments.append(_rich_text(" "))
     segments.append(_link_text("\u2197", item["link"]))  # ↗
 
-    return {
+    block = {
         "object": "block",
         "type": "to_do",
         "to_do": {
@@ -61,6 +61,23 @@ def _todo_block(item: dict, emoji: str) -> dict:
             "checked": False,
         },
     }
+
+    # Add suggested response as a nested child block
+    if item.get("suggested_response"):
+        block["to_do"]["children"] = [
+            {
+                "object": "block",
+                "type": "quote",
+                "quote": {
+                    "rich_text": [
+                        _rich_text("\U0001f4ac Suggested: ", bold=True),  # 💬
+                        _rich_text(item["suggested_response"], color="gray"),
+                    ],
+                },
+            }
+        ]
+
+    return block
 
 
 def _heading_block(level: int, text: str) -> dict:

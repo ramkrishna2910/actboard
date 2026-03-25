@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 from fetchers.discord_fetcher import fetch_discord
 from fetchers.github_fetcher import fetch_github
 from analyzer import analyze
-from renderer import render
+from responder import generate_responses
 from notion_writer import write_to_notion
 
 
@@ -41,9 +41,15 @@ def load_config() -> dict:
         print("Copy .env.example to .env and fill in all values.", file=sys.stderr)
         sys.exit(1)
 
+    # On Mondays, extend lookback to 72 hours to cover the weekend
+    if date.today().weekday() == 0:  # 0 = Monday
+        print("Monday detected — extending lookback to 72 hours")
+        config["discord"]["lookback_hours"] = 72
+        config["github"]["lookback_hours"] = 72
+
     # Build report title
     today = date.today().isoformat()
-    title_fmt = config.get("notion", {}).get("report_title_format", "Daily Triage — {date}")
+    title_fmt = config.get("notion", {}).get("report_title_format", "Daily Triage - {date}")
     config["_report_title"] = title_fmt.format(date=today)
 
     return config
@@ -63,13 +69,13 @@ def main():
     print("Analyzing with Claude...")
     triage_result = analyze(discord_data, github_data, config)
 
-    print("Rendering Notion blocks...")
-    notion_blocks = render(triage_result)
+    print("Generating suggested responses...")
+    triage_result = generate_responses(triage_result, config)
 
     print("Writing to Notion...")
     try:
-        page_url = write_to_notion(notion_blocks, config)
-        print(f"Triage report published: {page_url}")
+        page_url = write_to_notion(triage_result, config)
+        print(f"Triage board: {page_url}")
     except Exception as e:
         # Fallback: save JSON to file
         today = date.today().isoformat()

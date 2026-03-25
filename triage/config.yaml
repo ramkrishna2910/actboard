@@ -1,21 +1,21 @@
 user:
-  discord_username: "ramkrishna2910"
-  github_username: "ramkrishna2910"
-
+  discord_username: ramkrishna2910
+  github_username: ramkrishna2910
 discord:
-  guild_id: "1392562559122407535"
-  monitor: "all"
-  exclude_channels: []
+  guild_id: '1392562559122407535'
+  monitor: all
+  exclude_channels:
+  - welcome
   lookback_hours: 24
-
 github:
   repos:
-    - owner: "lemonade-sdk"
-      repo: "lemonade"
+  - owner: lemonade-sdk
+    repo: lemonade
   lookback_hours: 24
   include_draft_prs: true
   include_code_reviews: true
-
+responder:
+  repo_path: C:/Users/ramkr-halo/actboard/lemonade
 notion:
-  parent_page_id: "31e4f5b0cb188090b709ec89245a382c"
-  report_title_format: "Daily Triage - {date}"
+  parent_page_id: 31e4f5b0cb188090b709ec89245a382c
+  report_title_format: Daily Triage - {date}

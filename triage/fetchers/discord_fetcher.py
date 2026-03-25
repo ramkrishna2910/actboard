@@ -50,12 +50,24 @@ def _fetch_guild_channels(session: requests.Session, guild_id: str) -> list[dict
 
 
 def _filter_channels(channels: list[dict], config: dict) -> list[dict]:
-    """Apply monitor/exclude filters from config."""
+    """Apply monitor/exclude filters from config. Supports IDs or names."""
     monitor = config["discord"].get("monitor", "all")
-    exclude = set(str(c) for c in config["discord"].get("exclude_channels", []))
+    exclude_raw = config["discord"].get("exclude_channels", [])
+    exclude_ids = set()
+    exclude_names = set()
+    for c in exclude_raw:
+        s = str(c)
+        if s.isdigit():
+            exclude_ids.add(s)
+        else:
+            exclude_names.add(s.lower())
 
     if monitor == "all":
-        return [ch for ch in channels if str(ch["id"]) not in exclude]
+        return [
+            ch for ch in channels
+            if str(ch["id"]) not in exclude_ids
+            and ch.get("name", "").lower() not in exclude_names
+        ]
     else:
         monitor_ids = set(str(c) for c in monitor)
         return [ch for ch in channels if str(ch["id"]) in monitor_ids]
