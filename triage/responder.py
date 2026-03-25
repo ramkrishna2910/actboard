@@ -3,7 +3,6 @@
 import json
 import subprocess
 import sys
-from concurrent.futures import ThreadPoolExecutor, as_completed
 
 
 def _call_claude_code(question: str, link: str, label: str, repo_path: str, session_id: str | None) -> dict:
@@ -18,140 +17,115 @@ def _call_claude_code(question: str, link: str, label: str, repo_path: str, sess
     )
 
     cmd = [
-        "claude",
-        "-p", prompt,
+        "claude", "-p", prompt,
         "--output-format", "json",
         "--max-turns", "3",
         "--allowedTools", "Read,Glob,Grep",
     ]
-
     if session_id:
         cmd.extend(["--resume", session_id])
 
     try:
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            cwd=repo_path,
-            timeout=120,
-        )
+        result = subprocess.run(cmd, capture_output=True, text=True, cwd=repo_path, timeout=120)
         if result.returncode != 0:
             print(f"    [responder] claude CLI error for: {label}", file=sys.stderr)
             return {"response": None, "session_id": session_id}
-
         output = json.loads(result.stdout)
-        new_session_id = output.get("session_id", session_id)
-        response_text = output.get("result", "").strip()
-
-        return {"response": response_text, "session_id": new_session_id}
-
+        return {
+            "response": output.get("result", "").strip(),
+            "session_id": output.get("session_id", session_id),
+        }
     except subprocess.TimeoutExpired:
         print(f"    [responder] timeout for: {label}", file=sys.stderr)
         return {"response": None, "session_id": session_id}
-    except (json.JSONDecodeError, Exception) as e:
+    except Exception as e:
         print(f"    [responder] error for {label}: {e}", file=sys.stderr)
         return {"response": None, "session_id": session_id}
 
 
-def _init_session(repo_path: str) -> str | None:
-    """Initialize a Claude Code session by loading codebase context once."""
+def _init_session(repo_path: str, repo_name: str) -> str | None:
+    """Initialize a Claude Code session for a repo."""
     prompt = (
-        "Read the project README and understand the codebase structure. "
-        "This is the Lemonade SDK — an open-source local LLM server for AMD Ryzen AI hardware. "
+        f"Read the project README and understand the codebase structure of {repo_name}. "
         "You will be asked follow-up questions about this codebase. "
         "Just confirm you've loaded the context."
     )
-
     cmd = [
-        "claude",
-        "-p", prompt,
+        "claude", "-p", prompt,
         "--output-format", "json",
         "--max-turns", "5",
         "--allowedTools", "Read,Glob,Grep",
     ]
-
     try:
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            cwd=repo_path,
-            timeout=120,
-        )
+        result = subprocess.run(cmd, capture_output=True, text=True, cwd=repo_path, timeout=120)
         if result.returncode != 0:
-            print("    [responder] Failed to init session", file=sys.stderr)
             return None
-
         output = json.loads(result.stdout)
         session_id = output.get("session_id")
-        print(f"    [responder] Session initialized: {session_id}")
+        print(f"    [responder] Session for {repo_name}: {session_id}")
         return session_id
-
     except Exception as e:
-        print(f"    [responder] Init error: {e}", file=sys.stderr)
+        print(f"    [responder] Init error for {repo_name}: {e}", file=sys.stderr)
         return None
-
-
-def _git_pull(repo_path: str):
-    """Pull latest changes from the main branch."""
-    try:
-        result = subprocess.run(
-            ["git", "pull", "--ff-only"],
-            capture_output=True,
-            text=True,
-            cwd=repo_path,
-            timeout=60,
-        )
-        if result.returncode == 0:
-            print(f"    Repo updated: {result.stdout.strip()}")
-        else:
-            print(f"    git pull warning: {result.stderr.strip()}", file=sys.stderr)
-    except Exception as e:
-        print(f"    git pull failed: {e}", file=sys.stderr)
 
 
 def generate_responses(triage_result: dict, config: dict) -> dict:
     """
-    For each ACT item in the triage result, use Claude Code to draft a response.
-    Modifies triage_result in place, adding 'suggested_response' to ACT items.
-    Returns the modified triage_result.
+    For each ACT item, use Claude Code to draft a response using the
+    appropriate repo's codebase.
     """
-    repo_path = config.get("responder", {}).get("repo_path", "")
-    if not repo_path:
-        print("  Skipping responder: responder.repo_path not set in config.yaml")
-        return triage_result
+    # Build repo_path lookup from config
+    repo_paths = {}
+    for rc in config.get("github", {}).get("repos", []):
+        name = rc.get("name", rc["repo"])
+        path = rc.get("repo_path", "")
+        if path:
+            repo_paths[name] = path
 
-    # Collect all ACT items across discord and github
+    # Default repo for discord ACT items
+    default_repo = None
+    for rc in config.get("github", {}).get("repos", []):
+        if rc.get("fetch") == "all":
+            path = rc.get("repo_path", "")
+            name = rc.get("name", rc["repo"])
+            if path:
+                default_repo = (name, path)
+                break
+
+    # Collect ACT items with their repo context
     act_items = []
-    for source in ("discord", "github"):
-        for item in triage_result.get(source, {}).get("act", []):
-            act_items.append((source, item))
+    for source_key, categories in triage_result.items():
+        if source_key in ("generated_at",) or not isinstance(categories, dict):
+            continue
+        for item in categories.get("act", []):
+            if source_key == "discord" and default_repo:
+                act_items.append((default_repo[0], default_repo[1], item))
+            elif source_key in repo_paths:
+                act_items.append((source_key, repo_paths[source_key], item))
 
     if not act_items:
-        print("  No ACT items to respond to.")
+        print("  No ACT items with available repos to respond to.")
         return triage_result
 
     print(f"  Generating responses for {len(act_items)} ACT items...")
 
-    # Pull latest code
-    print("    Syncing repo...")
-    _git_pull(repo_path)
+    # Group by repo and init one session per repo
+    sessions = {}  # repo_name -> session_id
+    for repo_name, repo_path, item in act_items:
+        if repo_name not in sessions:
+            print(f"    Initializing session for {repo_name}...")
+            sessions[repo_name] = _init_session(repo_path, repo_name)
 
-    # Init session once to load codebase context
-    print("    Initializing Claude Code session...")
-    session_id = _init_session(repo_path)
-
-    # Process items sequentially to reuse session context
-    for i, (source, item) in enumerate(act_items, 1):
+    # Process items
+    for i, (repo_name, repo_path, item) in enumerate(act_items, 1):
         summary = item.get("summary", "")
         link = item.get("link", "")
         label = item.get("label", "")
-        print(f"    [{i}/{len(act_items)}] {label}: {summary[:60]}...")
+        print(f"    [{i}/{len(act_items)}] {repo_name}/{label}: {summary[:60]}...")
 
-        result = _call_claude_code(summary, link, label, repo_path, session_id)
+        result = _call_claude_code(summary, link, label, repo_path, sessions.get(repo_name))
         if result["session_id"]:
-            session_id = result["session_id"]
+            sessions[repo_name] = result["session_id"]
         if result["response"]:
             item["suggested_response"] = result["response"]
             print(f"      Response generated ({len(result['response'])} chars)")

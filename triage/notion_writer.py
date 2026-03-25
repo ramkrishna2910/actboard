@@ -36,11 +36,18 @@ DATABASE_PROPERTIES = {
     "Date": {"date": {}},
 }
 
-# Map triage source keys to display names and emoji icons
-SOURCE_CONFIG = {
-    "discord": {"name": "Discord", "icon": "\U0001f4ac"},      # 💬
-    "github":  {"name": "Lemonade", "icon": "\U0001f34b"},      # 🍋
-}
+def _build_source_config(config: dict) -> dict:
+    """Build source config dynamically from config.yaml repos + discord."""
+    sources = {
+        "discord": {"name": "Discord", "icon": "\U0001f4ac", "hide_handled": False},
+    }
+    for repo_cfg in config.get("github", {}).get("repos", []):
+        name = repo_cfg.get("name", repo_cfg["repo"])
+        icon = repo_cfg.get("icon", "\U0001f4e6")  # 📦 default
+        hide_handled = repo_cfg.get("hide_handled", False)
+        sources[name] = {"name": name, "icon": icon, "hide_handled": hide_handled}
+    sources["_gh_extras"] = {"name": "Other (gh)", "icon": "\U0001f514", "hide_handled": False}
+    return sources
 
 
 def _headers(api_key: str) -> dict:
@@ -186,14 +193,17 @@ def write_to_notion(triage_result: dict, config: dict) -> str:
     else:
         print(f"  Found existing daily page: {daily_title}")
 
-    for source_key, source_cfg in SOURCE_CONFIG.items():
+    source_config = _build_source_config(config)
+    for source_key, source_cfg in source_config.items():
         source_name = source_cfg["name"]
         source_icon = source_cfg["icon"]
         items_by_cat = triage_result.get(source_key, {})
 
         # All items for this source
+        hide_handled = source_cfg.get("hide_handled", False)
+        categories = ("act", "monitor") if hide_handled else ("act", "monitor", "handled")
         all_items = []
-        for category in ("act", "monitor", "handled"):
+        for category in categories:
             for item in items_by_cat.get(category, []):
                 all_items.append((category, item))
 

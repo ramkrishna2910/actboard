@@ -66,7 +66,7 @@ def _filter_channels(channels: list[dict], config: dict) -> list[dict]:
         return [
             ch for ch in channels
             if str(ch["id"]) not in exclude_ids
-            and ch.get("name", "").lower() not in exclude_names
+            and not any(ex in ch.get("name", "").lower() for ex in exclude_names)
         ]
     else:
         monitor_ids = set(str(c) for c in monitor)

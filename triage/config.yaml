@@ -1,21 +1,62 @@
 user:
   discord_username: ramkrishna2910
   github_username: ramkrishna2910
+
 discord:
   guild_id: '1392562559122407535'
   monitor: all
   exclude_channels:
   - welcome
   lookback_hours: 24
+
 github:
-  repos:
-  - owner: lemonade-sdk
-    repo: lemonade
   lookback_hours: 24
-  include_draft_prs: true
-  include_code_reviews: true
-responder:
-  repo_path: C:/Users/ramkr-halo/actboard/lemonade
+  repos:
+    - owner: lemonade-sdk
+      repo: lemonade
+      name: Lemonade
+      icon: "\U0001F34B"
+      fetch: all
+      include_drafts: true
+      repo_path: C:/Users/ramkr-halo/actboard/lemonade
+      prompt: |
+        This is Krishna's own project. PRs where he is a requested
+        reviewer or where he requested changes are ACT. High-engagement
+        issues are ACT. Low-activity issues are MONITOR. PRs approved/merged
+        by others with no action needed are HANDLED.
+
+    - owner: ggerganov
+      repo: llama.cpp
+      name: llama.cpp
+      icon: "\U0001F999"
+      fetch: prs_only
+      include_drafts: false
+      hide_handled: true
+      repo_path: C:/Users/ramkr-halo/actboard/llama.cpp
+      prompt: |
+        Krishna monitors this upstream project for AMD-related work.
+        ACT: PRs mentioning AMD, ROCm, HIP, or Radeon. Performance
+        improvements to inference, quantization, or memory. New model
+        architecture support (e.g. new GGUF format, new model families).
+        MONITOR: Other active PRs that could affect Lemonade's llama.cpp integration.
+        HANDLED: Merged PRs, clearly unrelated PRs (e.g. iOS-only, Metal-only).
+
+    - owner: ggerganov
+      repo: whisper.cpp
+      name: whisper.cpp
+      icon: "\U0001F399"
+      fetch: prs_only
+      include_drafts: false
+      hide_handled: true
+      repo_path: C:/Users/ramkr-halo/actboard/whisper.cpp
+      prompt: |
+        Krishna monitors this for AMD/ROCm support and speech-to-text
+        improvements relevant to Lemonade's multimodal pipeline.
+        ACT: PRs mentioning AMD, ROCm, HIP. Performance work on
+        inference or decoding. New model support (e.g. large-v3, distil).
+        MONITOR: Other notable PRs that could affect Lemonade's whisper integration.
+        HANDLED: Merged PRs, clearly unrelated PRs.
+
 notion:
   parent_page_id: 31e4f5b0cb188090b709ec89245a382c
   report_title_format: Daily Triage - {date}
