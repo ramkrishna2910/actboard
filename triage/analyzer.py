@@ -62,6 +62,28 @@ Return only valid JSON:
 
 TriageItem = {{"summary": str, "reason": str, "link": str, "label": str, "is_recent": bool}}"""
 
+REDDIT_PROMPT_TEMPLATE = CONTEXT + """
+
+Review these Reddit posts from r/{subreddit} and categorize each into ACT, MONITOR, or HANDLED.
+
+{custom_prompt}
+
+Summarize each in 1-2 sentences. Include the post link.
+
+Return only valid JSON:
+{{"act": [TriageItem], "monitor": [TriageItem], "handled": [TriageItem]}}
+
+TriageItem = {{"summary": str, "reason": str, "link": str, "label": str, "is_recent": bool}}"""
+
+
+def _prepare_reddit_posts(posts: list[dict], truncate_len: int = 1000) -> str:
+    trimmed = []
+    for post in posts:
+        t = {**post}
+        t["body"] = _truncate(t.get("body", ""), truncate_len)
+        trimmed.append(t)
+    return json.dumps(trimmed, indent=2, default=str)
+
 
 def _truncate(text: str, max_len: int = 500) -> str:
     if len(text) <= max_len:
@@ -143,9 +165,10 @@ def _call_claude(client: anthropic.Anthropic, system: str, user_msg: str, label:
                 return {"act": [], "monitor": [], "handled": []}
 
 
-def analyze(discord_data: list[dict], github_data: dict, config: dict, gh_extras: dict | None = None) -> dict:
+def analyze(discord_data: list[dict], github_data: dict, config: dict,
+            gh_extras: dict | None = None, reddit_data: dict | None = None) -> dict:
     """
-    Parallel sub-agents: one per Discord channel, one per GitHub repo.
+    Parallel sub-agents: one per Discord channel, one per GitHub repo, one per subreddit.
     github_data is now a dict: {repo_name: [items]}
     Returns: {discord: {...}, repo_name: {...}, ...}
     """
@@ -196,6 +219,21 @@ def analyze(discord_data: list[dict], github_data: dict, config: dict, gh_extras
             user_msg = json.dumps(all_extras, indent=2, default=str)
             tasks.append(("_gh_extras", f"gh/extras ({len(all_extras)} items)", GH_EXTRAS_PROMPT, user_msg))
 
+    # Reddit subreddits
+    reddit_cfg_by_name = {}
+    for sub_cfg in config.get("reddit", {}).get("subreddits", []):
+        reddit_cfg_by_name[f"r/{sub_cfg['name']}"] = sub_cfg
+    if reddit_data:
+        for sub_key, posts in reddit_data.items():
+            if not posts:
+                continue
+            sub_cfg = reddit_cfg_by_name.get(sub_key, {})
+            custom_prompt = sub_cfg.get("prompt", "Categorize posts as ACT, MONITOR, or HANDLED.")
+            subreddit = sub_cfg.get("name", sub_key)
+            system = REDDIT_PROMPT_TEMPLATE.format(subreddit=subreddit, custom_prompt=custom_prompt)
+            user_msg = _prepare_reddit_posts(posts)
+            tasks.append((sub_key, f"reddit/{sub_key} ({len(posts)} posts)", system, user_msg))
+
     print(f"  Dispatching {len(tasks)} sub-agents in parallel...")
 
     # Init result structure
@@ -204,6 +242,9 @@ def analyze(discord_data: list[dict], github_data: dict, config: dict, gh_extras
         merged[repo_name] = {"act": [], "monitor": [], "handled": []}
     if gh_extras:
         merged["_gh_extras"] = {"act": [], "monitor": [], "handled": []}
+    if reddit_data:
+        for sub_key in reddit_data:
+            merged[sub_key] = {"act": [], "monitor": [], "handled": []}
 
     with ThreadPoolExecutor(max_workers=min(len(tasks), 10)) as pool:
         futures = {

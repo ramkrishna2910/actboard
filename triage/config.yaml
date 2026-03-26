@@ -57,6 +57,30 @@ github:
         MONITOR: Other notable PRs that could affect Lemonade's whisper integration.
         HANDLED: Merged PRs, clearly unrelated PRs.
 
+reddit:
+  lookback_hours: 24
+  subreddits:
+    - name: LocalLLaMA
+      icon: "\U0001F999"
+      hide_handled: true
+      prompt: |
+        ACT: Posts mentioning Lemonade, Lemonade SDK, lemonade-sdk,
+        AMD Ryzen AI, ROCm for LLMs, or llama.cpp/whisper.cpp performance
+        on AMD hardware. Posts asking about local LLM serving on AMD
+        that Krishna could help with.
+        MONITOR: General local LLM posts about new models, quantization
+        techniques, or inference optimization that could be relevant.
+        HANDLED: Everything else.
+    - name: StrixHalo
+      icon: "\U0001F4BB"
+      hide_handled: true
+      prompt: |
+        ACT: Posts mentioning Lemonade, Lemonade SDK, lemonade-sdk,
+        ROCm for ML/AI, running LLMs or AI workloads on Strix Halo.
+        Posts about llama.cpp or whisper.cpp on Strix Halo/Ryzen AI.
+        MONITOR: General Strix Halo performance and ML discussion.
+        HANDLED: Unrelated hardware posts, gaming benchmarks.
+
 notion:
   parent_page_id: 31e4f5b0cb188090b709ec89245a382c
   report_title_format: Daily Triage - {date}

@@ -13,6 +13,7 @@ from dotenv import load_dotenv
 from fetchers.discord_fetcher import fetch_discord
 from fetchers.github_fetcher import fetch_github
 from fetchers.gh_fetcher import fetch_gh_supplements
+from fetchers.reddit_fetcher import fetch_reddit
 from analyzer import analyze
 from responder import generate_responses
 from notion_writer import write_to_notion
@@ -97,8 +98,13 @@ def main():
     print("Checking gh CLI for extras...")
     gh_extras = fetch_gh_supplements(config)
 
+    print("Fetching Reddit posts...")
+    reddit_data = fetch_reddit(config)
+    for sub_key, posts in reddit_data.items():
+        print(f"  {sub_key}: {len(posts)} posts")
+
     print("Analyzing with Claude...")
-    triage_result = analyze(discord_data, github_data, config, gh_extras)
+    triage_result = analyze(discord_data, github_data, config, gh_extras, reddit_data)
 
     print("Generating suggested responses...")
     triage_result = generate_responses(triage_result, config)

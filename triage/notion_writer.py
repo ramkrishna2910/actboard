@@ -46,6 +46,11 @@ def _build_source_config(config: dict) -> dict:
         icon = repo_cfg.get("icon", "\U0001f4e6")  # 📦 default
         hide_handled = repo_cfg.get("hide_handled", False)
         sources[name] = {"name": name, "icon": icon, "hide_handled": hide_handled}
+    for sub_cfg in config.get("reddit", {}).get("subreddits", []):
+        key = f"r/{sub_cfg['name']}"
+        icon = sub_cfg.get("icon", "\U0001f4e2")  # 📢 default
+        hide = sub_cfg.get("hide_handled", True)
+        sources[key] = {"name": key, "icon": icon, "hide_handled": hide}
     sources["_gh_extras"] = {"name": "Other (gh)", "icon": "\U0001f514", "hide_handled": False}
     return sources
 
