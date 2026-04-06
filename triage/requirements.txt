@@ -3,3 +3,7 @@ python-dotenv
 pyyaml
 anthropic
 notion-client
+httpx
+browser-use
+playwright
+rich

@@ -4,6 +4,7 @@ import json
 import os
 import subprocess
 import sys
+import time
 from datetime import date, datetime, timezone
 from pathlib import Path
 
@@ -17,10 +18,10 @@ from fetchers.reddit_fetcher import fetch_reddit
 from analyzer import analyze
 from responder import generate_responses
 from notion_writer import write_to_notion
+from pipeline_events import emit
 
 
 def _git_pull(repo_path: str, name: str):
-    """Pull latest changes for a repo."""
     try:
         result = subprocess.run(
             ["git", "pull", "--ff-only"],
@@ -35,7 +36,6 @@ def _git_pull(repo_path: str, name: str):
 
 
 def sync_repos(config: dict):
-    """Git pull all repos that have a local clone path."""
     print("Syncing repos...")
     for repo_cfg in config["github"]["repos"]:
         repo_path = repo_cfg.get("repo_path", "")
@@ -45,7 +45,6 @@ def sync_repos(config: dict):
 
 
 def load_config() -> dict:
-    """Load config.yaml and .env, validate required keys."""
     config_path = Path(__file__).parent / "config.yaml"
     with open(config_path) as f:
         config = yaml.safe_load(f)
@@ -60,19 +59,20 @@ def load_config() -> dict:
         "NOTION_API_KEY": os.getenv("NOTION_API_KEY", ""),
     }
 
-    missing = [k for k, v in config["env"].items() if not v]
+    required_keys = ["DISCORD_BOT_TOKEN", "GITHUB_TOKEN", "NOTION_API_KEY"]
+    if config.get("inference", {}).get("backend", "claude") == "claude":
+        required_keys.append("ANTHROPIC_API_KEY")
+    missing = [k for k in required_keys if not config["env"].get(k)]
     if missing:
         print(f"Error: Missing API keys: {', '.join(missing)}", file=sys.stderr)
         print("Copy .env.example to .env and fill in all values.", file=sys.stderr)
         sys.exit(1)
 
-    # On Mondays, extend lookback to 72 hours to cover the weekend
     if date.today().weekday() == 0:
         print("Monday detected - extending lookback to 72 hours")
         config["discord"]["lookback_hours"] = 72
         config["github"]["lookback_hours"] = 72
 
-    # Build report title
     today = date.today().isoformat()
     title_fmt = config.get("notion", {}).get("report_title_format", "Daily Triage - {date}")
     config["_report_title"] = title_fmt.format(date=today)
@@ -81,38 +81,66 @@ def load_config() -> dict:
 
 
 def main():
+    start = time.time()
     config = load_config()
 
-    # Pull all repos first
-    sync_repos(config)
+    sources = ["Discord"] + [r.get("name", r["repo"]) for r in config["github"]["repos"]]
+    emit("pipeline_start", "pipeline", config_summary={"sources": sources})
 
+    # Sync repos
+    emit("stage_start", "sync_repos")
+    sync_repos(config)
+    emit("stage_complete", "sync_repos", item_count=len(config["github"]["repos"]))
+
+    # Fetch Discord
+    emit("stage_start", "fetch_discord")
     print("Fetching Discord messages...")
     discord_data = fetch_discord(config)
     print(f"  Found {len(discord_data)} messages")
+    emit("stage_complete", "fetch_discord", item_count=len(discord_data))
 
+    # Fetch GitHub
+    emit("stage_start", "fetch_github")
     print("Fetching GitHub issues/PRs...")
     github_data = fetch_github(config)
+    gh_total = sum(len(v) for v in github_data.values())
     for repo_name, items in github_data.items():
         print(f"  {repo_name}: {len(items)} items")
+    emit("stage_complete", "fetch_github", item_count=gh_total)
 
+    # Fetch gh CLI extras
+    emit("stage_start", "fetch_gh")
     print("Checking gh CLI for extras...")
     gh_extras = fetch_gh_supplements(config)
+    gh_extra_count = len(gh_extras.get("review_requests", [])) + len(gh_extras.get("mentions", []))
+    emit("stage_complete", "fetch_gh", item_count=gh_extra_count)
 
+    # Fetch Reddit
+    emit("stage_start", "fetch_reddit")
     print("Fetching Reddit posts...")
     reddit_data = fetch_reddit(config)
+    reddit_total = sum(len(v) for v in reddit_data.values())
     for sub_key, posts in reddit_data.items():
         print(f"  {sub_key}: {len(posts)} posts")
+    emit("stage_complete", "fetch_reddit", item_count=reddit_total)
 
-    print("Analyzing with Claude...")
+    # Analyze
+    print("Analyzing...")
     triage_result = analyze(discord_data, github_data, config, gh_extras, reddit_data)
 
+    # Respond
+    emit("stage_start", "responder")
     print("Generating suggested responses...")
     triage_result = generate_responses(triage_result, config)
+    emit("stage_complete", "responder")
 
+    # Write to Notion
+    emit("stage_start", "notion")
     print("Writing to Notion...")
     try:
         page_url = write_to_notion(triage_result, config)
         print(f"Triage board: {page_url}")
+        emit("notion_complete", "notion", page_url=page_url)
     except Exception as e:
         today = date.today().isoformat()
         fallback_path = Path(__file__).parent / f"triage_output_{today}.json"
@@ -120,6 +148,11 @@ def main():
             json.dump(triage_result, f, indent=2, default=str)
         print(f"Error writing to Notion: {e}", file=sys.stderr)
         print(f"Triage JSON saved to: {fallback_path}")
+        emit("notion_error", "notion", error=str(e))
+
+    duration = time.time() - start
+    emit("pipeline_complete", "pipeline", duration=duration)
+    print(f"\nDone in {duration:.1f}s")
 
 
 if __name__ == "__main__":

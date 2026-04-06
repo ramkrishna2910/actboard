@@ -2,6 +2,11 @@ user:
   discord_username: ramkrishna2910
   github_username: ramkrishna2910
 
+inference:
+  backend: local
+  model: Qwen3.5-35B-A3B-GGUF
+  base_url: http://localhost:8000
+
 discord:
   guild_id: '1392562559122407535'
   monitor: all

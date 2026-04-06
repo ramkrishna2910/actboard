@@ -62,7 +62,7 @@ def _headers(api_key: str) -> dict:
 def _api_post(api_key: str, path: str, body: dict) -> dict:
     resp = httpx.post(f"{NOTION_API}/{path}", headers=_headers(api_key), json=body, timeout=30)
     if resp.status_code != 200:
-        print(f"    [notion] {path} error {resp.status_code}: {resp.text[:300]}", file=sys.stderr)
+        print(f"    [notion] {path} error {resp.status_code}: {resp.text[:300].encode('ascii', 'replace').decode()}", file=sys.stderr)
     resp.raise_for_status()
     return resp.json()
 
@@ -81,7 +81,7 @@ def _create_database(api_key: str, parent_page_id: str, title: str, icon: str) -
         "icon": {"type": "emoji", "emoji": icon},
         "properties": DATABASE_PROPERTIES,
     })
-    print(f"  Created database: {icon} {title}")
+    print(f"  Created database: {title}")
     return db["id"]
 
 
@@ -213,7 +213,7 @@ def write_to_notion(triage_result: dict, config: dict) -> str:
                 all_items.append((category, item))
 
         if not all_items:
-            print(f"  {source_icon} {source_name}: no items, skipping")
+            print(f"  [{source_name}]: no items, skipping")
             continue
 
         # Find or create database under today's page
@@ -221,7 +221,9 @@ def write_to_notion(triage_result: dict, config: dict) -> str:
         if not db_id:
             db_id = _create_database(api_key, daily_page_id, source_name, source_icon)
 
-        print(f"  {source_icon} {source_name}: {len(all_items)} items")
+        print(f"  [{source_name}]: {len(all_items)} items")
+        from pipeline_events import emit
+        emit("notion_source", "notion", source_name=source_name, item_count=len(all_items))
 
         # Dedup
         existing_links = set()
@@ -234,13 +236,23 @@ def write_to_notion(triage_result: dict, config: dict) -> str:
 
         # Add new entries
         new_count = 0
+        errors = 0
         for category, item in all_items:
             link = item.get("link", "")
             if link in existing_links:
                 continue
-            _create_entry(api_key, db_id, item, category, today)
-            new_count += 1
+            try:
+                _create_entry(api_key, db_id, item, category, today)
+                new_count += 1
+            except Exception as e:
+                errors += 1
+                if errors <= 2:
+                    print(f"    Entry error: {str(e)[:100]}", file=sys.stderr)
+                    time.sleep(2)  # Back off on errors
+                if errors > 5:
+                    print(f"    Too many errors ({errors}), skipping rest of {source_name}", file=sys.stderr)
+                    break
 
-        print(f"    Added {new_count} new entries")
+        print(f"    Added {new_count} new entries" + (f" ({errors} errors)" if errors else ""))
 
     return f"https://notion.so/{daily_page_id.replace('-', '')}"
