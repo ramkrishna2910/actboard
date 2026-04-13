@@ -15,6 +15,7 @@ from fetchers.discord_fetcher import fetch_discord
 from fetchers.github_fetcher import fetch_github
 from fetchers.gh_fetcher import fetch_gh_supplements
 from fetchers.reddit_fetcher import fetch_reddit
+from fetchers.outlook_fetcher import fetch_outlook
 from analyzer import analyze
 from responder import generate_responses
 from notion_writer import write_to_notion
@@ -57,6 +58,7 @@ def load_config() -> dict:
         "GITHUB_TOKEN": os.getenv("GITHUB_TOKEN", ""),
         "ANTHROPIC_API_KEY": os.getenv("ANTHROPIC_API_KEY", ""),
         "NOTION_API_KEY": os.getenv("NOTION_API_KEY", ""),
+        "OUTLOOK_FLOW_URL": os.getenv("OUTLOOK_FLOW_URL", ""),
     }
 
     required_keys = ["DISCORD_BOT_TOKEN", "GITHUB_TOKEN", "NOTION_API_KEY"]
@@ -124,9 +126,16 @@ def main():
         print(f"  {sub_key}: {len(posts)} posts")
     emit("stage_complete", "fetch_reddit", item_count=reddit_total)
 
+    # Fetch Outlook emails
+    emit("stage_start", "fetch_outlook")
+    print("Fetching Outlook emails...")
+    outlook_data = fetch_outlook(config)
+    outlook_total = sum(len(v) for v in outlook_data.values())
+    emit("stage_complete", "fetch_outlook", item_count=outlook_total)
+
     # Analyze
     print("Analyzing...")
-    triage_result = analyze(discord_data, github_data, config, gh_extras, reddit_data)
+    triage_result = analyze(discord_data, github_data, config, gh_extras, reddit_data, outlook_data)
 
     # Respond
     emit("stage_start", "responder")

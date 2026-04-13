@@ -3,9 +3,11 @@ user:
   github_username: ramkrishna2910
 
 inference:
-  backend: local
-  model: Qwen3.5-35B-A3B-GGUF
-  base_url: http://localhost:8000
+  backend: claude
+  model: claude-sonnet-4-20250514
+  # Local LLM settings (used when backend: local)
+  # base_url: http://localhost:8000
+  # model: Qwen3.5-35B-A3B-GGUF
 
 discord:
   guild_id: '1392562559122407535'
@@ -61,6 +63,21 @@ github:
         inference or decoding. New model support (e.g. large-v3, distil).
         MONITOR: Other notable PRs that could affect Lemonade's whisper integration.
         HANDLED: Merged PRs, clearly unrelated PRs.
+
+outlook:
+  folder: "C:/Users/ramkr-halo/Desktop/DailyTriage"
+  icon: "\U0001F4E7"
+  hide_handled: true
+  keywords: []  # empty = send all non-noise emails to LLM
+  skip_senders: []  # extra senders to skip beyond defaults
+  skip_subjects: []  # extra subjects to skip beyond defaults
+  prompt: |
+    ACT: Emails requiring Krishna's response or action. Direct requests,
+    questions from teammates, review requests, escalations, deadlines.
+    MONITOR: FYI emails, status updates, announcements, newsletters
+    that Krishna should be aware of but doesn't need to respond to.
+    HANDLED: Already read and replied, automated notifications,
+    spam-like emails, calendar confirmations.
 
 reddit:
   lookback_hours: 24

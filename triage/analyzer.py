@@ -64,6 +64,19 @@ Return only valid JSON:
 
 TriageItem = {{"summary": str, "reason": str, "link": str, "label": str, "is_recent": bool}}"""
 
+OUTLOOK_PROMPT_TEMPLATE = CONTEXT + """
+
+Review these Outlook emails and categorize each into ACT, MONITOR, or HANDLED.
+
+{custom_prompt}
+
+Summarize each in 1-2 sentences. Include the email link.
+
+Return only valid JSON:
+{{"act": [TriageItem], "monitor": [TriageItem], "handled": [TriageItem]}}
+
+TriageItem = {{"summary": str, "reason": str, "link": str, "label": str, "is_recent": bool}}"""
+
 REDDIT_PROMPT_TEMPLATE = CONTEXT + """
 
 Review these Reddit posts from r/{subreddit} and categorize each into ACT, MONITOR, or HANDLED.
@@ -255,7 +268,8 @@ def _make_caller(config: dict):
 
 
 def analyze(discord_data: list[dict], github_data: dict, config: dict,
-            gh_extras: dict | None = None, reddit_data: dict | None = None) -> dict:
+            gh_extras: dict | None = None, reddit_data: dict | None = None,
+            outlook_data: dict | None = None) -> dict:
     """
     Parallel sub-agents: one per Discord channel, one per GitHub repo, one per subreddit.
     github_data is now a dict: {repo_name: [items]}
@@ -335,6 +349,21 @@ def analyze(discord_data: list[dict], github_data: dict, config: dict,
                 part = f" pt{i // max_posts_per_chunk + 1}" if len(posts) > max_posts_per_chunk else ""
                 tasks.append((sub_key, f"reddit/{sub_key}{part} ({len(chunk)} posts)", system, user_msg))
 
+    # Outlook emails
+    if outlook_data:
+        for source_key, emails in outlook_data.items():
+            if not emails:
+                continue
+            outlook_cfg = config.get("outlook", {})
+            custom_prompt = outlook_cfg.get("prompt", "Categorize emails as ACT, MONITOR, or HANDLED.")
+            system = OUTLOOK_PROMPT_TEMPLATE.format(custom_prompt=custom_prompt)
+            max_emails_per_chunk = 10 if is_local else 50
+            for i in range(0, len(emails), max_emails_per_chunk):
+                chunk = emails[i:i + max_emails_per_chunk]
+                user_msg = _prepare_reddit_posts(chunk, 500 if is_local else 1000)  # same format works
+                part = f" pt{i // max_emails_per_chunk + 1}" if len(emails) > max_emails_per_chunk else ""
+                tasks.append((source_key, f"outlook{part} ({len(chunk)} emails)", system, user_msg))
+
     from pipeline_events import emit as _emit
     _emit("analyze_start", "analyzer", task_count=len(tasks), tasks=[t[1] for t in tasks])
     print(f"  Dispatching {len(tasks)} sub-agents in parallel...")
@@ -348,6 +377,9 @@ def analyze(discord_data: list[dict], github_data: dict, config: dict,
     if reddit_data:
         for sub_key in reddit_data:
             merged[sub_key] = {"act": [], "monitor": [], "handled": []}
+    if outlook_data:
+        for source_key in outlook_data:
+            merged[source_key] = {"act": [], "monitor": [], "handled": []}
 
     # Local LLM can only handle 1-2 concurrent requests; Claude can do many
     max_workers = 1 if inference.get("backend") == "local" else min(len(tasks), 10)

@@ -51,6 +51,14 @@ def _build_source_config(config: dict) -> dict:
         icon = sub_cfg.get("icon", "\U0001f4e2")  # 📢 default
         hide = sub_cfg.get("hide_handled", True)
         sources[key] = {"name": key, "icon": icon, "hide_handled": hide}
+    # Outlook
+    if config.get("outlook", {}).get("folder"):
+        outlook_cfg = config["outlook"]
+        sources["Outlook"] = {
+            "name": "Outlook",
+            "icon": outlook_cfg.get("icon", "\U0001f4e7"),  # 📧
+            "hide_handled": outlook_cfg.get("hide_handled", True),
+        }
     sources["_gh_extras"] = {"name": "Other (gh)", "icon": "\U0001f514", "hide_handled": False}
     return sources
 
