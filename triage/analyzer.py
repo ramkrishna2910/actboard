@@ -15,18 +15,18 @@ CLAUDE_MODEL = "claude-sonnet-4-20250514"
 MAX_TOKENS_CLAUDE = 8192
 MAX_TOKENS_LOCAL = 16384  # Needs room for thinking (~5-8k) + JSON output (~2k)
 
-CONTEXT = """\
-You are a daily triage assistant for Krishna (Discord: ramkrishna2910, GitHub: ramkrishna2910), \
-a Principal ML Software Engineer who maintains the Lemonade SDK — an open-source local LLM server \
-for AMD Ryzen AI hardware (llama.cpp, ONNX Runtime GenAI, multimodal inference). \
-He interacts with external contributors, AMD stakeholders, and community members daily."""
+DEFAULT_PERSONA = (
+    "You are a daily triage assistant for the user. They want their inbox of "
+    "Discord messages, GitHub activity, Reddit posts, and emails sorted into "
+    "items that need their attention versus items they can ignore."
+)
 
-DISCORD_PROMPT_TEMPLATE = CONTEXT + """
+DISCORD_PROMPT_TEMPLATE = """{context}
 
 Review the Discord messages from the #{channel_name} channel and categorize each into ACT, MONITOR, or HANDLED.
 
 RULES:
-- HANDLED: Krishna already replied, OR another community member adequately answered the question/bug
+- HANDLED: the user already replied, OR another community member adequately answered the question/bug
 - ACT: A question, bug report, or request with NO adequate response from anyone. Also: long discussions left unresolved
 - MONITOR: Informational messages, announcements, FYI, resolved discussions
 - Summarize each thread in 1-2 sentences. Do not quote verbatim. Always include the message link.
@@ -36,7 +36,7 @@ Return only valid JSON:
 
 TriageItem = {{"summary": str, "reason": str, "link": str, "label": str, "is_recent": bool}}"""
 
-REPO_PROMPT_TEMPLATE = CONTEXT + """
+REPO_PROMPT_TEMPLATE = """{context}
 
 Review these GitHub items from {repo_name} ({repo_full}) and categorize each into ACT, MONITOR, or HANDLED.
 
@@ -50,9 +50,9 @@ Return only valid JSON:
 
 TriageItem = {{"summary": str, "reason": str, "link": str, "label": str, "is_recent": bool}}"""
 
-GH_EXTRAS_PROMPT = CONTEXT + """
+GH_EXTRAS_PROMPT_TEMPLATE = """{context}
 
-These are GitHub items from repos NOT in Krishna's tracked list, but where he was
+These are GitHub items from repos NOT in the user's tracked list, but where they were
 either requested as a reviewer or @mentioned. Categorize each:
 
 - ACT: Review requests, direct mentions needing a response
@@ -64,7 +64,7 @@ Return only valid JSON:
 
 TriageItem = {{"summary": str, "reason": str, "link": str, "label": str, "is_recent": bool}}"""
 
-OUTLOOK_PROMPT_TEMPLATE = CONTEXT + """
+OUTLOOK_PROMPT_TEMPLATE = """{context}
 
 Review these Outlook emails and categorize each into ACT, MONITOR, or HANDLED.
 
@@ -77,7 +77,7 @@ Return only valid JSON:
 
 TriageItem = {{"summary": str, "reason": str, "link": str, "label": str, "is_recent": bool}}"""
 
-REDDIT_PROMPT_TEMPLATE = CONTEXT + """
+REDDIT_PROMPT_TEMPLATE = """{context}
 
 Review these Reddit posts from r/{subreddit} and categorize each into ACT, MONITOR, or HANDLED.
 
@@ -278,6 +278,7 @@ def analyze(discord_data: list[dict], github_data: dict, config: dict,
     inference = config.get("inference", {})
     caller = _make_caller(config)
     lookback = config["github"].get("lookback_hours", 24)
+    context = (config.get("user", {}).get("persona") or "").strip() or DEFAULT_PERSONA
 
     # Build repo config lookup
     repo_cfg_by_name = {}
@@ -296,7 +297,7 @@ def analyze(discord_data: list[dict], github_data: dict, config: dict,
     max_msgs_per_chunk = 8 if is_local else 200
     discord_trunc = 500 if is_local else 1000
     for channel_name, messages in discord_by_channel.items():
-        system = DISCORD_PROMPT_TEMPLATE.format(channel_name=channel_name)
+        system = DISCORD_PROMPT_TEMPLATE.format(context=context, channel_name=channel_name)
         for i in range(0, len(messages), max_msgs_per_chunk):
             chunk = messages[i:i + max_msgs_per_chunk]
             user_msg = _prepare_discord_channel(chunk, discord_trunc)
@@ -311,7 +312,7 @@ def analyze(discord_data: list[dict], github_data: dict, config: dict,
         custom_prompt = rc.get("prompt", "Categorize items as ACT, MONITOR, or HANDLED.")
         repo_full = f"{rc.get('owner', '')}/{rc.get('repo', '')}"
         system = REPO_PROMPT_TEMPLATE.format(
-            repo_name=repo_name, repo_full=repo_full,
+            context=context, repo_name=repo_name, repo_full=repo_full,
             custom_prompt=custom_prompt, lookback_hours=lookback,
         )
         default_trunc = 1000 if is_local else (2000 if rc.get("prompt") else 1000)
@@ -328,7 +329,8 @@ def analyze(discord_data: list[dict], github_data: dict, config: dict,
         all_extras = gh_extras.get("review_requests", []) + gh_extras.get("mentions", [])
         if all_extras:
             user_msg = json.dumps(all_extras, indent=2, default=str)
-            tasks.append(("_gh_extras", f"gh/extras ({len(all_extras)} items)", GH_EXTRAS_PROMPT, user_msg))
+            gh_extras_system = GH_EXTRAS_PROMPT_TEMPLATE.format(context=context)
+            tasks.append(("_gh_extras", f"gh/extras ({len(all_extras)} items)", gh_extras_system, user_msg))
 
     # Reddit subreddits
     reddit_cfg_by_name = {}
@@ -341,7 +343,7 @@ def analyze(discord_data: list[dict], github_data: dict, config: dict,
             sub_cfg = reddit_cfg_by_name.get(sub_key, {})
             custom_prompt = sub_cfg.get("prompt", "Categorize posts as ACT, MONITOR, or HANDLED.")
             subreddit = sub_cfg.get("name", sub_key)
-            system = REDDIT_PROMPT_TEMPLATE.format(subreddit=subreddit, custom_prompt=custom_prompt)
+            system = REDDIT_PROMPT_TEMPLATE.format(context=context, subreddit=subreddit, custom_prompt=custom_prompt)
             max_posts_per_chunk = 15 if is_local else 100
             for i in range(0, len(posts), max_posts_per_chunk):
                 chunk = posts[i:i + max_posts_per_chunk]
@@ -356,7 +358,7 @@ def analyze(discord_data: list[dict], github_data: dict, config: dict,
                 continue
             outlook_cfg = config.get("outlook", {})
             custom_prompt = outlook_cfg.get("prompt", "Categorize emails as ACT, MONITOR, or HANDLED.")
-            system = OUTLOOK_PROMPT_TEMPLATE.format(custom_prompt=custom_prompt)
+            system = OUTLOOK_PROMPT_TEMPLATE.format(context=context, custom_prompt=custom_prompt)
             max_emails_per_chunk = 10 if is_local else 50
             for i in range(0, len(emails), max_emails_per_chunk):
                 chunk = emails[i:i + max_emails_per_chunk]

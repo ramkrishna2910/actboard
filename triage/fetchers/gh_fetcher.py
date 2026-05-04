@@ -59,7 +59,7 @@ def fetch_gh_supplements(config: dict) -> dict:
     for repo_cfg in config["github"]["repos"]:
         tracked_repos.add(f"{repo_cfg['owner']}/{repo_cfg['repo']}")
 
-    # PRs requesting Krishna's review (across ALL repos, not just tracked ones)
+    # PRs requesting the user's review (across ALL repos, not just tracked ones)
     print("  Checking gh for review requests...")
     review_prs = fetch_review_requests(github_username)
     extra_reviews = []

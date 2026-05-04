@@ -70,15 +70,6 @@ def _fetch_subreddit_posts(session: requests.Session, subreddit: str, cutoff: da
     return posts
 
 
-# Default keywords — always included for all subreddits
-DEFAULT_KEYWORDS = [
-    "lemonade", "lemonade-sdk", "lemonade sdk",
-    "amd", "rocm", "ryzen ai", "ryzen-ai", "strix",
-    "llama.cpp", "llama cpp", "whisper.cpp", "whisper cpp",
-    "onnx", "ort", "genai",
-]
-
-
 def _matches_keywords(post: dict, keywords: list[str]) -> bool:
     """Check if post title, body, or flair contains any keyword (case-insensitive)."""
     text = f"{post.get('title', '')} {post.get('body', '')} {post.get('flair', '')}".lower()
@@ -104,16 +95,22 @@ def fetch_reddit(config: dict) -> dict:
     session = requests.Session()
     session.headers.update({"User-Agent": USER_AGENT})
 
+    global_keywords = [k.lower() for k in reddit_cfg.get("keywords", [])]
+
     results = {}
     for sub_cfg in subreddits:
         name = sub_cfg["name"]
-        extra_keywords = [k.lower() for k in sub_cfg.get("keywords", [])]
-        all_keywords = [k.lower() for k in DEFAULT_KEYWORDS] + extra_keywords
+        per_sub_keywords = [k.lower() for k in sub_cfg.get("keywords", [])]
+        all_keywords = global_keywords + per_sub_keywords
 
         print(f"  Scanning r/{name}...")
         all_posts = _fetch_subreddit_posts(session, name, cutoff)
-        filtered = [p for p in all_posts if _matches_keywords(p, all_keywords)]
-        print(f"    r/{name}: {len(filtered)}/{len(all_posts)} posts matched keywords")
+        if all_keywords:
+            filtered = [p for p in all_posts if _matches_keywords(p, all_keywords)]
+            print(f"    r/{name}: {len(filtered)}/{len(all_posts)} posts matched keywords")
+        else:
+            filtered = all_posts
+            print(f"    r/{name}: {len(filtered)} posts (no keyword filter)")
         results[f"r/{name}"] = filtered
 
     return results

@@ -1,0 +1,31 @@
+# Secrets and personal config
+.env
+.env.local
+**/.env
+triage/config.yaml
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Editors / IDEs
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# Claude Code local settings
+.claude/settings.local.json
+
+# Pipeline output fallback
+triage_output_*.json
+triage/triage_output_*.json

@@ -1,0 +1,105 @@
+# Copy this file to config.yaml and fill in your own values.
+# config.yaml is gitignored so your personal settings stay local.
+
+user:
+  # Your handles. Used to detect when *you* have already replied so the
+  # triage assistant can mark those threads as HANDLED.
+  discord_username: ""
+  github_username: ""
+
+  # Free-text persona that's prepended to every LLM call. Describe who you
+  # are, what you maintain, who you interact with — the analyzer uses this
+  # to decide what counts as ACT vs MONITOR for you.
+  persona: |
+    You are a daily triage assistant for [Your Name] (Discord: @your_handle,
+    GitHub: @your_handle), a [your role] who maintains [your project / area
+    of focus]. You interact with [external contributors / teammates / a
+    community] daily.
+
+inference:
+  # "claude" uses the Anthropic API (requires ANTHROPIC_API_KEY).
+  # "local" uses any OpenAI-compatible chat completions endpoint.
+  backend: claude
+  model: claude-sonnet-4-20250514
+
+  # Local LLM settings (used when backend: local). Uncomment and edit.
+  # base_url: http://localhost:8000
+  # model: your-local-model-name
+
+# ---------------------------------------------------------------------------
+# Each source below is OPTIONAL. Delete a section or leave its list empty
+# to skip that source entirely.
+# ---------------------------------------------------------------------------
+
+discord:
+  # Your Discord server's guild ID (right-click server icon -> Copy ID with
+  # Developer Mode enabled).
+  guild_id: ""
+  # "all" to scan every channel the bot can read, or a list of channel IDs.
+  monitor: all
+  # Channel IDs or name substrings to skip when monitor is "all".
+  exclude_channels:
+    - welcome
+  lookback_hours: 24
+
+github:
+  lookback_hours: 24
+  # Repos to scan for open issues / PRs with recent activity.
+  # Remove this list (or leave it empty) to skip GitHub entirely.
+  repos:
+    - owner: your-org
+      repo: your-repo
+      name: your-repo            # Display name in the Notion output
+      icon: "📦"                  # Emoji shown next to the source
+      fetch: all                 # all | prs_only | issues_only
+      include_drafts: true
+      # Optional: local path to a clone of the repo. If set, main.py will
+      # `git pull` it before triaging, and responder.py will use Claude
+      # Code in this directory to draft suggested replies for ACT items.
+      # repo_path: /absolute/path/to/your-repo
+      prompt: |
+        Free-text rules to guide the LLM for THIS repo. Example:
+        ACT: PRs where I'm a requested reviewer or where I requested
+        changes. Bug reports with no response from me.
+        MONITOR: Other active issues / PRs.
+        HANDLED: Merged or closed items needing nothing from me.
+
+reddit:
+  # Optional. Public JSON feeds — no auth required. Leave subreddits empty
+  # to skip Reddit.
+  lookback_hours: 24
+  subreddits: []
+  # Example:
+  # subreddits:
+  #   - name: LocalLLaMA
+  #     icon: "🦙"
+  #     hide_handled: true
+  #     keywords:                # only posts mentioning any keyword survive
+  #       - my-project
+  #       - my-product
+  #     prompt: |
+  #       ACT: Posts mentioning my-project that need a response.
+  #       MONITOR: Related discussion I should be aware of.
+  #       HANDLED: Everything else.
+
+outlook:
+  # Optional. Requires a Power Automate flow that exports your inbox as
+  # JSON files into a daily folder. See README for setup. Leave `folder`
+  # blank to skip Outlook.
+  folder: ""
+  icon: "📧"
+  hide_handled: true
+  keywords: []          # if non-empty, only emails matching these go to LLM
+  skip_senders: []      # extra senders to skip beyond the built-in defaults
+  skip_subjects: []     # extra subject substrings to skip
+  prompt: |
+    ACT: Emails requiring my response or action — direct requests,
+    questions, review requests, escalations, deadlines.
+    MONITOR: FYI emails, status updates, announcements.
+    HANDLED: Already handled, automated notifications, calendar noise.
+
+notion:
+  # Page ID of the Notion page where daily triage pages will be created
+  # under. Connect your Notion integration to this page first.
+  parent_page_id: ""
+  report_title_format: "Daily Triage - {date}"

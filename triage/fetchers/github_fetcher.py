@@ -122,7 +122,7 @@ def _process_item(session, item, owner, repo, repo_full, github_username, includ
 def fetch_github(config: dict) -> dict:
     """
     Fetch GitHub data per repo. Returns a dict keyed by repo config name:
-    {"lemonade": [items], "llama.cpp": [items], ...}
+    {"my-repo": [items], "another-repo": [items], ...}
     """
     token = config.get("env", {}).get("GITHUB_TOKEN", "")
     if not token:

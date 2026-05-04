@@ -1,0 +1,63 @@
+{
+  "definition": {
+    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+    "contentVersion": "1.0.0.0",
+    "triggers": {
+      "manual": {
+        "type": "Request",
+        "kind": "Button",
+        "inputs": {
+          "schema": {}
+        }
+      }
+    },
+    "actions": {
+      "Get_emails": {
+        "type": "OpenApiConnection",
+        "inputs": {
+          "parameters": {
+            "importance": "Any",
+            "fetchOnlyWithAttachment": false,
+            "folderPath": "Inbox",
+            "fetchOnlyUnread": false,
+            "includeAttachments": false,
+            "searchQuery": "received>=@{formatDateTime(addHours(utcNow(), -24), 'yyyy-MM-dd')}",
+            "top": 100
+          },
+          "host": {
+            "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365",
+            "connection": "shared_office365",
+            "operationId": "GetEmailsV3"
+          }
+        },
+        "runAfter": {}
+      },
+      "Compose_emails": {
+        "type": "Compose",
+        "inputs": "@body('Get_emails')?['value']",
+        "runAfter": {
+          "Get_emails": ["Succeeded"]
+        }
+      },
+      "Create_file": {
+        "type": "OpenApiConnection",
+        "inputs": {
+          "parameters": {
+            "folderPath": "/Triage",
+            "name": "emails-@{formatDateTime(utcNow(), 'yyyy-MM-dd')}.json",
+            "body": "@{outputs('Compose_emails')}"
+          },
+          "host": {
+            "apiId": "/providers/Microsoft.PowerApps/apis/shared_onedriveforbusiness",
+            "connection": "shared_onedriveforbusiness",
+            "operationId": "CreateFile"
+          }
+        },
+        "runAfter": {
+          "Compose_emails": ["Succeeded"]
+        }
+      }
+    },
+    "outputs": {}
+  }
+}
