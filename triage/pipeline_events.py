@@ -5,7 +5,6 @@ import time
 
 _event_queue: queue.Queue = queue.Queue()
 _enabled: bool = False
-_history: list = []
 
 
 def enable():
@@ -22,7 +21,6 @@ def emit(event_type: str, node: str, **kwargs):
         return
     event = {"type": event_type, "node": node, "ts": time.time(), **kwargs}
     _event_queue.put(event)
-    _history.append(event)
 
 
 def drain() -> list[dict]:
@@ -33,7 +31,3 @@ def drain() -> list[dict]:
         except queue.Empty:
             break
     return events
-
-
-def get_history() -> list[dict]:
-    return list(_history)

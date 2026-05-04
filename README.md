@@ -137,23 +137,24 @@ optional keyword filters in `config.yaml`. Posts are rate-limited politely.
 </details>
 
 <details>
-<summary><b>Outlook (optional, Windows-friendly)</b></summary>
+<summary><b>Outlook (optional, BYO export pipeline)</b></summary>
 
-Outlook integration goes through a Power Automate flow that exports your
-inbox to JSON files in a local folder. The starter flow is at
-`triage/power_automate_flow.json`.
+The Outlook fetcher does not talk to Outlook directly — it reads JSON files
+that some other process (e.g. a Power Automate flow you build yourself)
+drops into a daily folder. Setting up that export is on you.
 
-1. Import the flow at <https://make.powerautomate.com>: **My flows → Import →
-   Import package**.
-2. Authorize it against your Outlook and OneDrive / local file output.
-3. Configure where it dumps JSON files (one file per email).
-4. Point `outlook.folder` in `config.yaml` at that folder. The fetcher reads
-   `<folder>/<YYYY-MM-DD>/*.json` for each day.
-5. Copy the flow's HTTP trigger URL into `.env` as `OUTLOOK_FLOW_URL` so the
-   pipeline can kick the flow before reading.
+1. Build whatever pipeline exports your inbox as one JSON file per email,
+   into `<folder>/<YYYY-MM-DD>/<message-id>.json`.
+2. Each file should expose URL-encoded `subject`, `from`, `toRecipients`,
+   `receivedDateTime`, `webLink`, `isRead`, `importance`, and `bodyPreview`
+   keys — see `_decode_email` in `triage/fetchers/outlook_fetcher.py` for
+   the exact shape.
+3. Point `outlook.folder` in `config.yaml` at the parent folder.
+4. Optional: if your export pipeline has an HTTP trigger, put its URL in
+   `.env` as `OUTLOOK_FLOW_URL` and the fetcher will POST to it before
+   reading (handy for Power Automate-style flows).
 
-This is the most fiddly source. If you don't use Outlook, skip the section
-in `config.yaml` and you can ignore all of this.
+If you don't use Outlook, leave `outlook.folder` blank and ignore this.
 </details>
 
 <details>
@@ -220,10 +221,8 @@ schtasks /create /sc daily /tn ActBoard /tr "C:\path\to\.venv\Scripts\python.exe
     ├── analyzer.py              # parallel sub-agents (Claude / OpenAI-compatible)
     ├── responder.py             # optional Claude Code reply drafting
     ├── notion_writer.py         # per-source databases under a daily page
-    ├── renderer.py
     ├── pipeline_events.py
     ├── requirements.txt
-    ├── power_automate_flow.json # Outlook export starter flow
     └── fetchers/
         ├── discord_fetcher.py
         ├── github_fetcher.py    # REST API
