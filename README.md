@@ -30,143 +30,51 @@ For each source you enable, actboard:
 Every source is optional. Leave its config section empty (or omit it) and
 that source is skipped.
 
-## Quickstart with Claude Code
+## Setup
 
-If you have [Claude Code](https://claude.com/claude-code), the fastest path
-is to clone the repo, open it in Claude Code, and run:
+The recommended path is [Claude Code](https://claude.com/claude-code).
+Clone the repo, open it in Claude Code, and run:
 
 ```
 /actboard-setup
 ```
 
-The setup flow walks you through Python deps, creating the tokens for each
-service (Notion, Anthropic, Discord, GitHub, Reddit) with the right URLs,
-and populating `.env` and `config.yaml` for you. When it's done, run
+That walks you through Python deps, creates the tokens for each service
+(Notion, Anthropic, Discord, GitHub, Reddit) with the right URLs, and
+fills in `.env` and `config.yaml` for you. When it's done, run
 `/actboard-verify` to confirm every token works.
 
-If you'd rather set things up by hand, the manual instructions follow below.
+For incremental changes later — adding a repo, swapping inference
+backend, configuring a new subreddit — use the focused commands instead
+of redoing the full setup:
 
-## Requirements
+| Command | What it does |
+| --- | --- |
+| `/actboard-setup-notion` | Notion integration + parent page (required) |
+| `/actboard-setup-inference` | Anthropic API or local OpenAI-compatible LLM |
+| `/actboard-setup-discord` | Discord bot, server invite, channel filters |
+| `/actboard-setup-github` | GitHub PAT and repo list |
+| `/actboard-setup-reddit` | Subreddit list + keyword filters |
+| `/actboard-verify` | Ping every configured service |
 
-- **Python 3.10+**
-- **Notion** account (output destination)
-- **Anthropic API key** (or any OpenAI-compatible local LLM endpoint)
-- Optional: **`gh` CLI** authenticated, for cross-repo review requests / mentions
-- Optional: **Claude Code CLI** (`claude`) on `PATH`, only if you want
-  suggested-response drafting for ACT items via local repo clones
+### Without Claude Code
 
-## Install
+The manual path is just:
 
 ```bash
-git clone https://github.com/<your-fork>/actboard.git
-cd actboard
 python -m venv .venv
-# Windows: .venv\Scripts\activate
-source .venv/bin/activate
+# Windows: .venv\Scripts\activate     macOS/Linux: source .venv/bin/activate
 pip install -r triage/requirements.txt
-```
-
-## Configure
-
-### 1. Create a `.env`
-
-```bash
 cp triage/.env.example triage/.env
-```
-
-Then fill in only the keys for the sources you'll use:
-
-```
-DISCORD_BOT_TOKEN=          # Discord
-GITHUB_TOKEN=               # GitHub REST
-ANTHROPIC_API_KEY=          # Inference (skip if backend: local)
-NOTION_API_KEY=             # Required — output destination
-```
-
-### 2. Create your `config.yaml`
-
-```bash
 cp triage/config.example.yaml triage/config.yaml
 ```
 
-`config.yaml` is gitignored. Open it and fill in the sections for the sources
-you want — leave others blank or remove them.
-
-The most important field is `user.persona`: a short free-text description of
-who you are and what you maintain. The LLM uses it to decide what counts as
-ACT for *you*. Example:
-
-```yaml
-user:
-  persona: |
-    You are a daily triage assistant for Jane Doe (GitHub: @janedoe), an
-    SRE on the platform team at Example Corp. She owns the deployment
-    pipeline and the on-call rotation for Tier-1 services.
-```
-
-### 3. Set up each source
-
-<details>
-<summary><b>Discord</b></summary>
-
-1. Create a bot at <https://discord.com/developers/applications>.
-2. Enable the **Message Content Intent** under *Bot → Privileged Gateway Intents*.
-3. Invite the bot to your server with the `bot` scope and these permissions:
-   `Read Messages/View Channels`, `Read Message History`.
-4. Enable **Developer Mode** in Discord (Settings → Advanced), right-click the
-   server icon → **Copy ID**. That's your `discord.guild_id`.
-5. Put the bot token in `.env` as `DISCORD_BOT_TOKEN`.
-</details>
-
-<details>
-<summary><b>GitHub</b></summary>
-
-1. Create a fine-grained personal access token at
-   <https://github.com/settings/tokens?type=beta> with **read** access to
-   the repos you want to triage.
-2. Put it in `.env` as `GITHUB_TOKEN`.
-3. (Optional) Install and authenticate the `gh` CLI for the bonus
-   review-requests + mentions sweep across *all* repos:
-   ```bash
-   gh auth login
-   ```
-</details>
-
-<details>
-<summary><b>Notion</b></summary>
-
-1. Create an internal integration at <https://www.notion.so/my-integrations>
-   and copy the secret — that's your `NOTION_API_KEY`.
-2. In Notion, open the page where you want daily reports to live, click
-   **... → Connections → Add connection** and pick your integration.
-3. Copy the page ID from the URL: the 32-char string after the last slash
-   and before the `?`. That's your `notion.parent_page_id`.
-</details>
-
-<details>
-<summary><b>Reddit</b></summary>
-
-No auth required — uses the public JSON feeds. Just list subreddits and
-optional keyword filters in `config.yaml`. Posts are rate-limited politely.
-</details>
-
-<details>
-<summary><b>Anthropic vs local LLM</b></summary>
-
-Default is Claude via the Anthropic API. To use a local model instead, in
-`config.yaml`:
-
-```yaml
-inference:
-  backend: local
-  base_url: http://localhost:8000
-  model: your-model-name
-```
-
-Any OpenAI-compatible `/v1/chat/completions` endpoint works
-(llama.cpp server, vLLM, LM Studio, etc.). The analyzer reduces concurrency
-to 1 and trims prompts more aggressively for local backends.
-</details>
+Then fill in `triage/.env` with tokens and edit `triage/config.yaml` to
+describe yourself (`user.persona`) and the sources you want. Each
+slash-command markdown file in `.claude/commands/` is a self-contained
+walkthrough of one service — the URLs, exact click paths, and required
+permissions are there. Read `actboard-setup-notion.md`,
+`actboard-setup-discord.md`, etc. as if they were the docs.
 
 ## Run
 
