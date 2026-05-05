@@ -30,6 +30,22 @@ For each source you enable, actboard:
 Every source is optional. Leave its config section empty (or omit it) and
 that source is skipped.
 
+## Quickstart with Claude Code
+
+If you have [Claude Code](https://claude.com/claude-code), the fastest path
+is to clone the repo, open it in Claude Code, and run:
+
+```
+/setup
+```
+
+The setup flow walks you through Python deps, creating the tokens for each
+service (Notion, Anthropic, Discord, GitHub, Reddit) with the right URLs,
+and populating `.env` and `config.yaml` for you. When it's done, run
+`/verify` to confirm every token works.
+
+If you'd rather set things up by hand, the manual instructions follow below.
+
 ## Requirements
 
 - **Python 3.10+**
@@ -189,6 +205,9 @@ schtasks /create /sc daily /tn ActBoard /tr "C:\path\to\.venv\Scripts\python.exe
 .
 ├── LICENSE
 ├── README.md
+├── CLAUDE.md                    # Claude Code project context
+├── .claude/
+│   └── commands/                # /setup, /setup-*, /verify slash commands
 └── triage/
     ├── .env.example
     ├── config.example.yaml
