@@ -19,20 +19,45 @@ Note: if the user is using `lemonade launch claude`, that wrapper hands
 the same authenticated `claude` binary back, so the smoke test still
 passes — they just get Lemonade-served replies instead of Claude ones.
 
-## Step 2 — repo paths
+## Step 2 — repo clones
 
-Read `triage/config.yaml`. For each entry in `github.repos`:
+The responder needs each repo cloned locally. This step makes sure every
+tracked repo has a clone and writes the absolute path back into
+`triage/config.yaml` as `repo_path`.
+
+Verify `git --version` works first. If it doesn't, stop and tell the
+user to install Git from <https://git-scm.com/downloads>.
+
+Pick a default base directory once, up front, where missing clones will
+land. Suggest `~/actboard-repos/` (resolve `~` to the user's home — e.g.
+`C:\Users\<name>\actboard-repos` on Windows, `/Users/<name>/actboard-repos`
+on macOS, `/home/<name>/actboard-repos` on Linux). Let the user override
+with any absolute path. Create the directory if it doesn't exist
+(`mkdir -p`).
+
+Then read `triage/config.yaml`. For each entry in `github.repos`:
 
 1. Show the repo as `<owner>/<repo>`.
-2. Ask if the user has a local clone of it. If no → skip to next repo.
-3. If yes → ask for the absolute path. Validate that the path exists and
-   contains a `.git/` directory. Re-prompt on failure.
-4. Write the path back as `repo_path` under that repo's entry in
+2. If the entry already has a `repo_path` and that path exists with a
+   `.git/` dir, say "already cloned at `<path>`" and skip to the next
+   repo.
+3. Otherwise, ask: "Clone <owner>/<repo>? [Y/n/path]"
+   - **Y (default)**: clone into `<base>/<repo>` (using the default
+     base from above). Run `git clone https://github.com/<owner>/<repo>
+     <path>`. If the destination already exists and isn't empty,
+     warn — don't clobber. On clone failure (private repo, network,
+     etc.), surface the git error and ask the user to fix and re-run.
+   - **path**: the user supplies an absolute path. If it exists with a
+     `.git/`, just record it. If it doesn't exist, run the same
+     `git clone` into that path.
+   - **n**: skip — leave `repo_path` unset for this repo. The
+     responder will silently skip it on every run.
+4. After clone (or path confirm), validate `<path>/.git/` exists.
+5. Write `repo_path: <absolute-path>` under that repo's entry in
    `triage/config.yaml`. Don't disturb other fields.
 
-If no repo ends up with a `repo_path`, the responder will print
-"No ACT items with available repos to respond to" each run and skip
-silently. That's fine — no error.
+After the loop, summarize: which repos got new clones, which used
+existing clones, which were skipped.
 
 ## Step 3 — Discord fallback
 

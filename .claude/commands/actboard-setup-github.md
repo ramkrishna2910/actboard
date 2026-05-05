@@ -41,11 +41,19 @@ For each repo the user wants triaged, ask:
 - `icon` — emoji (optional, e.g. `📦`)
 - `fetch` — `all`, `prs_only`, or `issues_only`
 - `include_drafts` — true/false (PRs only)
-- `repo_path` — optional absolute path to a local clone of this repo. If
-  set, two things happen: `main.py` runs `git pull --ff-only` here before
-  triaging, and `responder.py` uses Claude Code in this directory to
-  draft suggested replies for ACT items. Leave blank if you don't have a
-  clone. Validate the path exists and contains `.git/` before saving.
+- `repo_path` — optional absolute path to a local clone. If set, `main.py`
+  runs `git pull --ff-only` here before triaging, and `responder.py` uses
+  Claude Code in this directory to draft suggested replies. The user has
+  three options:
+  - **Skip**: leave blank. Responder silently skips this repo.
+  - **Existing clone**: ask for the absolute path; validate `.git/`
+    exists.
+  - **Clone now**: default the path to `~/actboard-repos/<repo>` (let
+    them override). Verify `git --version` works, create the parent
+    directory, then run
+    `git clone https://github.com/<owner>/<repo> <path>`. Validate
+    `.git/` afterward. On clone failure (private repo, network, etc.),
+    surface the git error and let them either fix and retry or skip.
 - `prompt` — a short free-text description of what counts as ACT vs
   MONITOR vs HANDLED for *this* repo. Examples:
   - "ACT: PRs where I'm requested as reviewer or where I requested
