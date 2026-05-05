@@ -70,13 +70,23 @@ read and execute the matching command file:
 If the user skips a source, leave its config section as-is (blank/empty
 in the example). The pipeline silently skips sources with empty config.
 
-## Step 6 — verify
+## Step 6 — optional responder
+
+If the user enabled GitHub in Step 5 and at least one repo got a
+`repo_path` populated, ask whether they want suggested-reply drafting
+for ACT items. If yes, read and execute
+`.claude/commands/actboard-setup-responder.md` — it does a `claude
+--version` smoke test and lets the user fill in any missing
+`repo_path`s on tracked repos. Skip if they said no or if no repos have
+local clones.
+
+## Step 7 — verify
 
 Read and execute `.claude/commands/actboard-verify.md` to ping each
 configured service. Report green/red per source. If any fail, suggest the
 matching `/actboard-setup-*` command to fix it.
 
-## Step 7 — first run
+## Step 8 — first run
 
 When verification is clean, tell the user:
 

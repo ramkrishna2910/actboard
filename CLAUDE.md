@@ -16,6 +16,8 @@ Slash commands (in `.claude/commands/`):
 - `/actboard-setup-inference` — Anthropic API or local OpenAI-compatible LLM.
 - `/actboard-setup-discord`, `/actboard-setup-github`,
   `/actboard-setup-reddit` — optional sources.
+- `/actboard-setup-responder` — optional Claude Code reply drafting for
+  ACT items.
 - `/actboard-verify` — sanity-check every configured token against its API.
 
 For incremental changes (e.g. adding another repo to triage), invoke the

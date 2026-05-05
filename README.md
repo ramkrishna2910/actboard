@@ -55,6 +55,7 @@ of redoing the full setup:
 | `/actboard-setup-discord` | Discord bot, server invite, channel filters |
 | `/actboard-setup-github` | GitHub PAT and repo list |
 | `/actboard-setup-reddit` | Subreddit list + keyword filters |
+| `/actboard-setup-responder` | Suggested-reply drafting for ACT items |
 | `/actboard-verify` | Ping every configured service |
 
 ### Without Claude Code
