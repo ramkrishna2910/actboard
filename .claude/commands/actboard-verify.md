@@ -19,7 +19,7 @@ Run only those whose credentials are present.
   200 → token ok.
 - `GET https://api.notion.com/v1/pages/<parent_page_id>` with same
   headers. 200 → integration has access to the page. 404 → integration
-  not connected to the page (run `/setup-notion` step 3 again).
+  not connected to the page (run `/actboard-setup-notion` step 3 again).
 
 ### Inference (required)
 - If `inference.backend == "claude"` (or unset) and `ANTHROPIC_API_KEY`
@@ -59,7 +59,7 @@ After all checks, print a summary:
 [ok] Notion
 [ok] Notion parent page
 [ok] Anthropic
-[fail] Discord: 401 (bad token — re-run /setup-discord)
+[fail] Discord: 401 (bad token — re-run /actboard-setup-discord)
 [ok] GitHub
 [ok] GitHub repo your-org/your-repo
 [ok] Reddit r/LocalLLaMA
@@ -67,4 +67,4 @@ After all checks, print a summary:
 6/7 checks passed
 ```
 
-If any check fails, suggest the matching `setup-*` command to fix it.
+If any check fails, suggest the matching `/actboard-setup-*` command to fix it.

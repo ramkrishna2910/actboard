@@ -55,26 +55,26 @@ Run these in order. For each, read the matching command file under
 `.claude/commands/` and execute its instructions inline (do NOT ask the
 user to type the slash command themselves):
 
-1. `setup-notion.md` — output destination, required.
-2. `setup-inference.md` — Anthropic API or local LLM, required.
+1. `actboard-setup-notion.md` — output destination, required.
+2. `actboard-setup-inference.md` — Anthropic API or local LLM, required.
 
 ## Step 5 — optional sources
 
 Ask the user which of the following they want to enable. For each "yes",
 read and execute the matching command file:
 
-- Discord — `setup-discord.md`
-- GitHub — `setup-github.md`
-- Reddit — `setup-reddit.md`
+- Discord — `actboard-setup-discord.md`
+- GitHub — `actboard-setup-github.md`
+- Reddit — `actboard-setup-reddit.md`
 
 If the user skips a source, leave its config section as-is (blank/empty
 in the example). The pipeline silently skips sources with empty config.
 
 ## Step 6 — verify
 
-Read and execute `.claude/commands/verify.md` to ping each configured
-service. Report green/red per source. If any fail, suggest the matching
-`setup-*` command to fix it.
+Read and execute `.claude/commands/actboard-verify.md` to ping each
+configured service. Report green/red per source. If any fail, suggest the
+matching `/actboard-setup-*` command to fix it.
 
 ## Step 7 — first run
 

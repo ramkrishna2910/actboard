@@ -36,13 +36,13 @@ If you have [Claude Code](https://claude.com/claude-code), the fastest path
 is to clone the repo, open it in Claude Code, and run:
 
 ```
-/setup
+/actboard-setup
 ```
 
 The setup flow walks you through Python deps, creating the tokens for each
 service (Notion, Anthropic, Discord, GitHub, Reddit) with the right URLs,
 and populating `.env` and `config.yaml` for you. When it's done, run
-`/verify` to confirm every token works.
+`/actboard-verify` to confirm every token works.
 
 If you'd rather set things up by hand, the manual instructions follow below.
 
@@ -207,7 +207,7 @@ schtasks /create /sc daily /tn ActBoard /tr "C:\path\to\.venv\Scripts\python.exe
 ├── README.md
 ├── CLAUDE.md                    # Claude Code project context
 ├── .claude/
-│   └── commands/                # /setup, /setup-*, /verify slash commands
+│   └── commands/                # /actboard-setup, /actboard-setup-*, /actboard-verify
 └── triage/
     ├── .env.example
     ├── config.example.yaml

@@ -7,18 +7,20 @@ Notion. See `README.md` for user-facing docs.
 ## First-time setup
 
 If `triage/.env` or `triage/config.yaml` doesn't exist, the user is brand
-new — point them at `/setup` rather than improvising.
+new — point them at `/actboard-setup` rather than improvising.
 
 Slash commands (in `.claude/commands/`):
 
-- `/setup` — full first-time flow: deps, tokens, config, verify.
-- `/setup-notion` — required output destination.
-- `/setup-inference` — Anthropic API or local OpenAI-compatible LLM.
-- `/setup-discord`, `/setup-github`, `/setup-reddit` — optional sources.
-- `/verify` — sanity-check every configured token against its API.
+- `/actboard-setup` — full first-time flow: deps, tokens, config, verify.
+- `/actboard-setup-notion` — required output destination.
+- `/actboard-setup-inference` — Anthropic API or local OpenAI-compatible LLM.
+- `/actboard-setup-discord`, `/actboard-setup-github`,
+  `/actboard-setup-reddit` — optional sources.
+- `/actboard-verify` — sanity-check every configured token against its API.
 
 For incremental changes (e.g. adding another repo to triage), invoke the
-matching `/setup-*` command instead of re-running the full `/setup`.
+matching `/actboard-setup-*` command instead of re-running the full
+`/actboard-setup`.
 
 ## Working in this repo
 
