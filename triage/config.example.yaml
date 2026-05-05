@@ -82,22 +82,6 @@ reddit:
   #       MONITOR: Related discussion I should be aware of.
   #       HANDLED: Everything else.
 
-outlook:
-  # Optional. Requires a Power Automate flow that exports your inbox as
-  # JSON files into a daily folder. See README for setup. Leave `folder`
-  # blank to skip Outlook.
-  folder: ""
-  icon: "📧"
-  hide_handled: true
-  keywords: []          # if non-empty, only emails matching these go to LLM
-  skip_senders: []      # extra senders to skip beyond the built-in defaults
-  skip_subjects: []     # extra subject substrings to skip
-  prompt: |
-    ACT: Emails requiring my response or action — direct requests,
-    questions, review requests, escalations, deadlines.
-    MONITOR: FYI emails, status updates, announcements.
-    HANDLED: Already handled, automated notifications, calendar noise.
-
 notion:
   # Page ID of the Notion page where daily triage pages will be created
   # under. Connect your Notion integration to this page first.

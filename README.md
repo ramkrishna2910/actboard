@@ -1,7 +1,7 @@
 # actboard
 
 A daily triage assistant that pulls activity from the places you actually live —
-Discord, GitHub, Reddit, Outlook — runs it through an LLM, and publishes a
+Discord, GitHub, and Reddit — runs it through an LLM, and publishes a
 prioritized **ACT / MONITOR / HANDLED** report to a Notion page.
 
 Built for open-source maintainers and engineers who get pulled in too many
@@ -26,7 +26,6 @@ For each source you enable, actboard:
 | GitHub (REST) | Open issues / PRs in configured repos with recent activity | PAT (`repo` read) |
 | GitHub (`gh` CLI) | Review requests + @mentions across *all* repos | `gh auth login` |
 | Reddit | Posts in configured subreddits, optional keyword filter | None (public JSON) |
-| Outlook | Emails exported by a Power Automate flow | Flow webhook URL |
 
 Every source is optional. Leave its config section empty (or omit it) and
 that source is skipped.
@@ -66,7 +65,6 @@ DISCORD_BOT_TOKEN=          # Discord
 GITHUB_TOKEN=               # GitHub REST
 ANTHROPIC_API_KEY=          # Inference (skip if backend: local)
 NOTION_API_KEY=             # Required — output destination
-OUTLOOK_FLOW_URL=           # Outlook (only if using Power Automate flow)
 ```
 
 ### 2. Create your `config.yaml`
@@ -137,27 +135,6 @@ optional keyword filters in `config.yaml`. Posts are rate-limited politely.
 </details>
 
 <details>
-<summary><b>Outlook (optional, BYO export pipeline)</b></summary>
-
-The Outlook fetcher does not talk to Outlook directly — it reads JSON files
-that some other process (e.g. a Power Automate flow you build yourself)
-drops into a daily folder. Setting up that export is on you.
-
-1. Build whatever pipeline exports your inbox as one JSON file per email,
-   into `<folder>/<YYYY-MM-DD>/<message-id>.json`.
-2. Each file should expose URL-encoded `subject`, `from`, `toRecipients`,
-   `receivedDateTime`, `webLink`, `isRead`, `importance`, and `bodyPreview`
-   keys — see `_decode_email` in `triage/fetchers/outlook_fetcher.py` for
-   the exact shape.
-3. Point `outlook.folder` in `config.yaml` at the parent folder.
-4. Optional: if your export pipeline has an HTTP trigger, put its URL in
-   `.env` as `OUTLOOK_FLOW_URL` and the fetcher will POST to it before
-   reading (handy for Power Automate-style flows).
-
-If you don't use Outlook, leave `outlook.folder` blank and ignore this.
-</details>
-
-<details>
 <summary><b>Anthropic vs local LLM</b></summary>
 
 Default is Claude via the Anthropic API. To use a local model instead, in
@@ -205,7 +182,6 @@ schtasks /create /sc daily /tn ActBoard /tr "C:\path\to\.venv\Scripts\python.exe
 | `gh search prs` fails | `gh` CLI not installed or not logged in — that source is then skipped silently |
 | Notion `validation_error` | Integration not connected to the parent page, or `parent_page_id` is wrong |
 | GitHub rate-limit exit | Use a token (or a different one) — unauthenticated quota is tiny |
-| Outlook folder not found | Power Automate flow hasn't run yet, or `outlook.folder` path is wrong |
 
 ## Project layout
 
@@ -227,8 +203,7 @@ schtasks /create /sc daily /tn ActBoard /tr "C:\path\to\.venv\Scripts\python.exe
         ├── discord_fetcher.py
         ├── github_fetcher.py    # REST API
         ├── gh_fetcher.py        # gh CLI bonuses
-        ├── reddit_fetcher.py
-        └── outlook_fetcher.py
+        └── reddit_fetcher.py
 ```
 
 ## Contributing
