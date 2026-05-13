@@ -51,6 +51,11 @@ def _build_source_config(config: dict) -> dict:
         icon = sub_cfg.get("icon", "\U0001f4e2")  # 📢 default
         hide = sub_cfg.get("hide_handled", True)
         sources[key] = {"name": key, "icon": icon, "hide_handled": hide}
+    for cat_cfg in config.get("juejin", {}).get("categories", []):
+        key = f"juejin/{cat_cfg['name']}"
+        icon = cat_cfg.get("icon", "\U0001f4d8")  # 📘 default
+        hide = cat_cfg.get("hide_handled", True)
+        sources[key] = {"name": key, "icon": icon, "hide_handled": hide}
     sources["_gh_extras"] = {"name": "Other (gh)", "icon": "\U0001f514", "hide_handled": False}
     return sources
 

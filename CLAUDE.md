@@ -1,8 +1,8 @@
 # actboard
 
-Daily triage assistant: pulls activity from Discord, GitHub, and Reddit, runs
-it through an LLM, publishes a prioritized ACT/MONITOR/HANDLED report to
-Notion. See `README.md` for user-facing docs.
+Daily triage assistant: pulls activity from Discord, GitHub, Reddit, and
+Juejin (掘金), runs it through an LLM, publishes a prioritized
+ACT/MONITOR/HANDLED report to Notion. See `README.md` for user-facing docs.
 
 ## First-time setup
 
@@ -15,7 +15,9 @@ Slash commands (in `.claude/commands/`):
 - `/actboard-setup-notion` — required output destination.
 - `/actboard-setup-inference` — Anthropic API or local OpenAI-compatible LLM.
 - `/actboard-setup-discord`, `/actboard-setup-github`,
-  `/actboard-setup-reddit` — optional sources.
+  `/actboard-setup-reddit` — optional sources. Juejin (掘金) is also
+  supported via the `juejin:` section of `config.yaml` (public recommend
+  feed, no auth); there's no dedicated setup command yet.
 - `/actboard-setup-responder` — optional Claude Code reply drafting for
   ACT items.
 - `/actboard-verify` — sanity-check every configured token against its API.
@@ -45,8 +47,8 @@ matching `/actboard-setup-*` command instead of re-running the full
    its config section is missing/blank, so sources are independently
    optional.
 2. **Analyzer** (`analyzer.py`) — fans out to one LLM sub-agent per channel,
-   per repo, per subreddit, plus one for `gh` extras. Concurrency is 10 for
-   Claude, 1 for local LLMs.
+   per repo, per subreddit, per Juejin category, plus one for `gh` extras.
+   Concurrency is 10 for Claude, 1 for local LLMs.
 3. **Responder** (`responder.py`, optional) — for ACT items in repos where
    the user set `repo_path`, shells out to the `claude` CLI to draft a
    suggested reply using the local clone.

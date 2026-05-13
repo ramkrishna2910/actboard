@@ -77,6 +77,19 @@ Return only valid JSON:
 
 TriageItem = {{"summary": str, "reason": str, "link": str, "label": str, "is_recent": bool}}"""
 
+JUEJIN_PROMPT_TEMPLATE = """{context}
+
+Review these Juejin (掘金) posts from the {category} category and categorize each into ACT, MONITOR, or HANDLED.
+
+{custom_prompt}
+
+Posts may be in Chinese — summarize each in 1-2 sentences in the same language as the post. Include the post link.
+
+Return only valid JSON:
+{{"act": [TriageItem], "monitor": [TriageItem], "handled": [TriageItem]}}
+
+TriageItem = {{"summary": str, "reason": str, "link": str, "label": str, "is_recent": bool}}"""
+
 
 def _prepare_reddit_posts(posts: list[dict], truncate_len: int = 1000) -> str:
     trimmed = []
@@ -85,6 +98,15 @@ def _prepare_reddit_posts(posts: list[dict], truncate_len: int = 1000) -> str:
         t["body"] = _truncate(t.get("body", ""), truncate_len)
         trimmed.append(t)
     return json.dumps(trimmed, indent=2, default=str)
+
+
+def _prepare_juejin_posts(posts: list[dict], truncate_len: int = 1000) -> str:
+    trimmed = []
+    for post in posts:
+        t = {**post}
+        t["body"] = _truncate(t.get("body", ""), truncate_len)
+        trimmed.append(t)
+    return json.dumps(trimmed, indent=2, default=str, ensure_ascii=False)
 
 
 def _truncate(text: str, max_len: int = 500) -> str:
@@ -255,9 +277,10 @@ def _make_caller(config: dict):
 
 
 def analyze(discord_data: list[dict], github_data: dict, config: dict,
-            gh_extras: dict | None = None, reddit_data: dict | None = None) -> dict:
+            gh_extras: dict | None = None, reddit_data: dict | None = None,
+            juejin_data: dict | None = None) -> dict:
     """
-    Parallel sub-agents: one per Discord channel, one per GitHub repo, one per subreddit.
+    Parallel sub-agents: one per Discord channel, one per GitHub repo, one per subreddit, one per Juejin category.
     github_data is now a dict: {repo_name: [items]}
     Returns: {discord: {...}, repo_name: {...}, ...}
     """
@@ -337,6 +360,25 @@ def analyze(discord_data: list[dict], github_data: dict, config: dict,
                 part = f" pt{i // max_posts_per_chunk + 1}" if len(posts) > max_posts_per_chunk else ""
                 tasks.append((sub_key, f"reddit/{sub_key}{part} ({len(chunk)} posts)", system, user_msg))
 
+    # Juejin categories
+    juejin_cfg_by_name = {}
+    for cat_cfg in config.get("juejin", {}).get("categories", []):
+        juejin_cfg_by_name[f"juejin/{cat_cfg['name']}"] = cat_cfg
+    if juejin_data:
+        for cat_key, posts in juejin_data.items():
+            if not posts:
+                continue
+            cat_cfg = juejin_cfg_by_name.get(cat_key, {})
+            custom_prompt = cat_cfg.get("prompt", "Categorize posts as ACT, MONITOR, or HANDLED.")
+            category = cat_cfg.get("name", cat_key)
+            system = JUEJIN_PROMPT_TEMPLATE.format(context=context, category=category, custom_prompt=custom_prompt)
+            max_posts_per_chunk = 15 if is_local else 100
+            for i in range(0, len(posts), max_posts_per_chunk):
+                chunk = posts[i:i + max_posts_per_chunk]
+                user_msg = _prepare_juejin_posts(chunk, 500 if is_local else 1000)
+                part = f" pt{i // max_posts_per_chunk + 1}" if len(posts) > max_posts_per_chunk else ""
+                tasks.append((cat_key, f"juejin/{cat_key}{part} ({len(chunk)} posts)", system, user_msg))
+
     from pipeline_events import emit as _emit
     _emit("analyze_start", "analyzer", task_count=len(tasks), tasks=[t[1] for t in tasks])
     print(f"  Dispatching {len(tasks)} sub-agents in parallel...")
@@ -350,6 +392,9 @@ def analyze(discord_data: list[dict], github_data: dict, config: dict,
     if reddit_data:
         for sub_key in reddit_data:
             merged[sub_key] = {"act": [], "monitor": [], "handled": []}
+    if juejin_data:
+        for cat_key in juejin_data:
+            merged[cat_key] = {"act": [], "monitor": [], "handled": []}
 
     # Local LLM can only handle 1-2 concurrent requests; Claude can do many
     max_workers = 1 if inference.get("backend") == "local" else min(len(tasks), 10)

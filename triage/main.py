@@ -15,6 +15,7 @@ from fetchers.discord_fetcher import fetch_discord
 from fetchers.github_fetcher import fetch_github
 from fetchers.gh_fetcher import fetch_gh_supplements
 from fetchers.reddit_fetcher import fetch_reddit
+from fetchers.juejin_fetcher import fetch_juejin
 from analyzer import analyze
 from responder import generate_responses
 from notion_writer import write_to_notion
@@ -124,9 +125,18 @@ def main():
         print(f"  {sub_key}: {len(posts)} posts")
     emit("stage_complete", "fetch_reddit", item_count=reddit_total)
 
+    # Fetch Juejin
+    emit("stage_start", "fetch_juejin")
+    print("Fetching Juejin posts...")
+    juejin_data = fetch_juejin(config)
+    juejin_total = sum(len(v) for v in juejin_data.values())
+    for cat_key, posts in juejin_data.items():
+        print(f"  {cat_key}: {len(posts)} posts")
+    emit("stage_complete", "fetch_juejin", item_count=juejin_total)
+
     # Analyze
     print("Analyzing...")
-    triage_result = analyze(discord_data, github_data, config, gh_extras, reddit_data)
+    triage_result = analyze(discord_data, github_data, config, gh_extras, reddit_data, juejin_data)
 
     # Respond
     emit("stage_start", "responder")
