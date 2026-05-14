@@ -12,8 +12,15 @@ USER_AGENT = (
     "(KHTML, like Gecko) Chrome/120.0 Safari/537.36 ActBoard/1.0"
 )
 
-# sort_type: 200 = newest, 300 = hottest. We want newest for time-bounded triage.
-SORT_NEWEST = 200
+# sort_type: 300 returns the recent/trending feed (items within the last few days).
+# sort_type=200 is labeled "newest" in some docs but empirically returns a stale
+# recommendation stream spanning months, so it's unusable for daily triage.
+SORT_RECENT = 300
+
+# Cap on pages walked per category. The feed is only roughly time-ordered, so we
+# can't safely stop on the first older item — instead, page until we run out of
+# data or hit this ceiling.
+MAX_PAGES = 10
 
 
 def _post_json(session: requests.Session, url: str, body: dict) -> dict:
@@ -35,14 +42,14 @@ def _post_json(session: requests.Session, url: str, body: dict) -> dict:
 
 
 def _fetch_category_posts(session: requests.Session, cate_id: str, cutoff: datetime) -> list[dict]:
-    """Fetch recent posts from a category's newest feed."""
+    """Fetch posts from a category's recent feed, filtered by cutoff."""
     posts = []
     cursor = "0"
 
-    while True:
+    for _ in range(MAX_PAGES):
         body = {
             "id_type": 2,
-            "sort_type": SORT_NEWEST,
+            "sort_type": SORT_RECENT,
             "cate_id": str(cate_id),
             "cursor": cursor,
             "limit": 20,
@@ -53,7 +60,6 @@ def _fetch_category_posts(session: requests.Session, cate_id: str, cutoff: datet
         if not items:
             break
 
-        hit_cutoff = False
         for item in items:
             article = item.get("article_info", {}) or {}
             author = item.get("author_user_info", {}) or {}
@@ -65,7 +71,6 @@ def _fetch_category_posts(session: requests.Session, cate_id: str, cutoff: datet
                 continue
 
             if created < cutoff:
-                hit_cutoff = True
                 continue
 
             article_id = article.get("article_id") or item.get("article_id", "")
@@ -83,10 +88,6 @@ def _fetch_category_posts(session: requests.Session, cate_id: str, cutoff: datet
                 "is_recent": True,
             })
 
-        # Newest-sorted feed: once we hit a post older than the cutoff, we're done.
-        if hit_cutoff:
-            break
-
         if not data.get("has_more"):
             break
         next_cursor = data.get("cursor")
@@ -94,7 +95,6 @@ def _fetch_category_posts(session: requests.Session, cate_id: str, cutoff: datet
             break
         cursor = next_cursor
 
-        # Be polite to Juejin
         time.sleep(1)
 
     return posts
