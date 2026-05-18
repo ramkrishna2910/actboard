@@ -83,7 +83,9 @@ Review these Juejin (掘金) posts from the {category} category and categorize e
 
 {custom_prompt}
 
-Posts may be in Chinese — summarize each in 1-2 sentences in the same language as the post. Include the post link.
+LANGUAGE: Juejin is a Chinese-language platform. Write `summary`, `reason`, and `label` in the SAME language as the post (Chinese for Chinese posts). DO NOT translate to English even though the rest of this prompt is in English. Technical terms in Latin script (model names, library names, code) stay as-is.
+
+Summarize each post in 1-2 sentences. Include the post link.
 
 Return only valid JSON:
 {{"act": [TriageItem], "monitor": [TriageItem], "handled": [TriageItem]}}
