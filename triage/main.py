@@ -60,13 +60,18 @@ def load_config() -> dict:
         "NOTION_API_KEY": os.getenv("NOTION_API_KEY", ""),
     }
 
-    required_keys = ["DISCORD_BOT_TOKEN", "GITHUB_TOKEN", "NOTION_API_KEY"]
+    # Only require tokens for sources that are actually configured.
+    required_keys = ["NOTION_API_KEY"]
     if config.get("inference", {}).get("backend", "claude") == "claude":
         required_keys.append("ANTHROPIC_API_KEY")
+    if config.get("discord", {}).get("guild_id"):
+        required_keys.append("DISCORD_BOT_TOKEN")
+    if config.get("github", {}).get("repos"):
+        required_keys.append("GITHUB_TOKEN")
     missing = [k for k in required_keys if not config["env"].get(k)]
     if missing:
         print(f"Error: Missing API keys: {', '.join(missing)}", file=sys.stderr)
-        print("Copy .env.example to .env and fill in all values.", file=sys.stderr)
+        print("Copy .env.example to .env and fill in the values needed for the sources you've configured in config.yaml.", file=sys.stderr)
         sys.exit(1)
 
     if date.today().weekday() == 0:
