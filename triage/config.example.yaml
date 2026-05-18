@@ -82,6 +82,35 @@ reddit:
   #       MONITOR: Related discussion I should be aware of.
   #       HANDLED: Everything else.
 
+juejin:
+  # Optional. Public recommend feed API — no auth required. Leave categories
+  # empty to skip Juejin (掘金).
+  lookback_hours: 24
+  categories: []
+  # Each entry needs a cate_id (Juejin's category ID, a string of digits).
+  # Common top-level categories:
+  #   后端       6809637769959178254
+  #   前端       6809637767543259144
+  #   Android   6809635626879549454
+  #   iOS       6809635626661445640
+  #   人工智能   6809637773935378440
+  #   开发工具   6809637771511070734
+  #   代码人生   6809637772874219534
+  #   阅读       6809637776263217160
+  # Example:
+  # categories:
+  #   - name: 前端
+  #     cate_id: "6809637767543259144"
+  #     icon: "💻"
+  #     hide_handled: true
+  #     keywords:                # only posts mentioning any keyword survive
+  #       - my-project
+  #       - react
+  #     prompt: |
+  #       ACT: Posts mentioning my-project that need a response.
+  #       MONITOR: Related discussion I should be aware of.
+  #       HANDLED: Everything else.
+
 notion:
   # Page ID of the Notion page where daily triage pages will be created
   # under. Connect your Notion integration to this page first.

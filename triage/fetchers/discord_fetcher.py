@@ -126,14 +126,14 @@ def fetch_discord(config: dict) -> list[dict]:
     """
     Main entry point. Returns a list of message dicts matching the spec schema.
     """
+    # Discord is optional — bail out cleanly if unconfigured.
+    guild_id = str(config.get("discord", {}).get("guild_id") or "")
+    if not guild_id:
+        return []
+
     token = config.get("env", {}).get("DISCORD_BOT_TOKEN", "")
     if not token:
-        print("Error: DISCORD_BOT_TOKEN not set.", file=sys.stderr)
-        sys.exit(1)
-
-    guild_id = str(config["discord"]["guild_id"])
-    if not guild_id:
-        print("Error: discord.guild_id not set in config.yaml.", file=sys.stderr)
+        print("Error: discord.guild_id is set but DISCORD_BOT_TOKEN is missing.", file=sys.stderr)
         sys.exit(1)
 
     lookback = config["discord"].get("lookback_hours", 24)
